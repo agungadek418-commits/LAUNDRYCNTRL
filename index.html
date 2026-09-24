@@ -1,0 +1,2995 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hotel Laundry - Smart Laundry Management</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts: Plus Jakarta Sans -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            blue: '#2563EB',
+                            purple: '#7C3AED',
+                            bg: '#F5F7FF',
+                            card: '#FFFFFF',
+                            text: '#1E293B',
+                            light: '#EEF2FF',
+                        }
+                    },
+                    borderRadius: {
+                        '3xl': '24px',
+                        '4xl': '32px',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        html, body { height: 100%; }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #F5F7FF;
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-text-size-adjust: 100%;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* Field input harus tetap bisa diketik (Safari memblokir input bila user-select: none) */
+        input, textarea, select {
+            user-select: text;
+            -webkit-user-select: text;
+        }
+
+        /* iOS Safari otomatis zoom saat fokus ke input < 16px */
+        @supports (-webkit-touch-callout: none) {
+            input, textarea, select { font-size: 16px !important; }
+        }
+
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+
+        .scrollbar-none { scrollbar-width: none; }
+        .scrollbar-none::-webkit-scrollbar { display: none; }
+
+        .bg-gradient-brand {
+            background: linear-gradient(135deg, #3B82F6 0%, #6366F1 50%, #8B5CF6 100%);
+        }
+        .shadow-soft {
+            box-shadow: 0 10px 30px -5px rgba(99, 102, 241, 0.08), 0 4px 12px -2px rgba(0, 0, 0, 0.03);
+        }
+        .shadow-glow {
+            box-shadow: 0 8px 20px -4px rgba(99, 102, 241, 0.35);
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(24px); opacity: 0; }
+            to   { transform: translateY(0);    opacity: 1; }
+        }
+        .animate-slide-up { animation: slideUp .25s ease-out; }
+
+        /* ===== LAYOUT ADAPTIF =====
+           < 640px   : layar penuh + bottom nav
+           640-1023  : layar penuh + bottom nav melayang, konten grid 2-4 kolom
+           >= 1024   : sidebar kiri + konten multi-kolom                       */
+        .app-container {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            height: 100vh;
+            height: 100dvh;
+            background-color: #F5F7FF;
+            overflow: hidden;
+        }
+
+        #screen-container {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow-x: hidden;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        #bottom-nav:not(.hidden) + #screen-container {
+            padding-bottom: calc(6.75rem + env(safe-area-inset-bottom, 0px));
+        }
+        @media (min-width: 640px) {
+            #screen-container.is-main > * {
+                max-width: 72rem;
+                margin-left: auto;
+                margin-right: auto;
+            }
+        }
+
+        /* --- Navigasi --- */
+        #bottom-nav {
+            position: absolute;
+            z-index: 40;
+            left: 0; right: 0; bottom: 0;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            padding: .5rem 1rem calc(.5rem + env(safe-area-inset-bottom, 0px));
+            background: rgba(255,255,255,.92);
+            -webkit-backdrop-filter: blur(12px);
+            backdrop-filter: blur(12px);
+            border-top: 1px solid #eef2ff;
+        }
+        #bottom-nav.hidden { display: none; }
+        #bottom-nav .nav-brand { display: none; }
+        #bottom-nav .nav-fab-label { display: none; }
+
+        @media (max-width: 1023.98px) {
+            #bottom-nav {
+                left: 50%; right: auto;
+                transform: translateX(-50%);
+                width: min(560px, calc(100% - 1.5rem));
+                bottom: calc(.75rem + env(safe-area-inset-bottom, 0px));
+                padding: .375rem .5rem;
+                border: 1px solid rgba(224, 231, 255, .9);
+                border-radius: 1.75rem;
+                box-shadow: 0 16px 36px -10px rgba(79, 70, 229, .35);
+            }
+            #bottom-nav .nav-item { min-width: 3.5rem; }
+            #bottom-nav .nav-fab { box-shadow: 0 0 0 6px rgba(255,255,255,.95), 0 12px 24px -4px rgba(99, 102, 241, .5); }
+        }
+
+        @media (min-width: 1024px) {
+            #bottom-nav {
+                top: 0; right: auto; bottom: 0;
+                width: 16rem;
+                flex-direction: column;
+                justify-content: flex-start;
+                align-items: stretch;
+                gap: .375rem;
+                padding: 1.5rem 1rem;
+                background: #fff;
+                border-top: 0;
+                border-right: 1px solid #e0e7ff;
+            }
+            #bottom-nav:not(.hidden) + #screen-container {
+                margin-left: 16rem;
+                padding-bottom: 1.5rem;
+            }
+            #bottom-nav .nav-brand { display: flex; order: -2; align-items: center; gap: .75rem; padding: 0 .5rem; margin-bottom: 1rem; }
+            #bottom-nav .nav-fab {
+                order: -1;
+                width: 100%; height: auto;
+                margin: 0 0 .75rem;
+                padding: .75rem 1rem;
+                border-radius: .875rem;
+                flex-direction: row;
+                gap: .5rem;
+            }
+            #bottom-nav .nav-fab i { font-size: 1rem; }
+            #bottom-nav .nav-fab-label { display: inline; font-size: .875rem; font-weight: 700; }
+            #bottom-nav .nav-item {
+                flex-direction: row;
+                justify-content: flex-start;
+                gap: .75rem;
+                padding: .75rem 1rem;
+                border-radius: .875rem;
+            }
+            #bottom-nav .nav-item i { width: 1.25rem; text-align: center; }
+            #bottom-nav .nav-item span { font-size: .875rem; margin-top: 0; }
+            #bottom-nav .nav-item:hover,
+            #bottom-nav .nav-item.text-indigo-600 { background: #eef2ff; }
+        }
+
+        /* ===== LAYAR KAMAR ===== */
+        .rooms-wrap {
+            background:
+                radial-gradient(70% 240px at 100% 0%, rgba(99,102,241,.14), transparent 70%),
+                radial-gradient(50% 200px at 0% 0%, rgba(59,130,246,.08), transparent 70%);
+        }
+        .room-card {
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            width: 100%;
+            min-height: 128px;
+            padding: .9rem;
+            border-radius: 1.25rem;
+            text-align: left;
+            cursor: pointer;
+            transition: transform .15s ease, border-color .2s, background-color .2s;
+            animation: roomIn .45s cubic-bezier(.2,.7,.2,1) backwards;
+            animation-delay: calc(var(--i, 0) * 22ms);
+        }
+        .room-card:active { transform: scale(.96); }
+        .room-card:focus-visible { outline: 2px solid #6366F1; outline-offset: 3px; }
+
+        .room-empty { background: rgba(255,255,255,.65); border: 1.5px dashed #CDD5E8; color: #334155; }
+        .room-empty:hover { border-color: #818CF8; background: #fff; }
+        .room-empty .plus { transition: background .2s, color .2s; }
+        .room-empty:hover .plus { background: linear-gradient(135deg,#3B82F6,#8B5CF6); color: #fff; }
+
+        .room-active { color: #fff; border: 0; }
+        .room-active::before {
+            content: '';
+            position: absolute;
+            top: -35%; right: -28%;
+            width: 75%; aspect-ratio: 1;
+            border-radius: 50%;
+            background: rgba(255,255,255,.14);
+            pointer-events: none;
+        }
+        .room-active > * { position: relative; }
+
+        .room-dot { width: 7px; height: 7px; border-radius: 50%; background: #fff; flex: none; }
+        .room-dot.pulse { animation: dotPulse 1.6s ease-out infinite; }
+
+        @keyframes roomIn { from { opacity: 0; transform: translateY(10px) scale(.97); } }
+        @keyframes dotPulse {
+            0%   { box-shadow: 0 0 0 0 rgba(255,255,255,.75); }
+            100% { box-shadow: 0 0 0 7px rgba(255,255,255,0); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .room-card, .room-dot.pulse { animation: none; }
+        }
+
+        /* Item nav aktif: pil lembut */
+        #bottom-nav .nav-item { border-radius: 1rem; }
+        #bottom-nav .nav-item.text-indigo-600 { background: #eef2ff; }
+
+        /* ===== LAYAR LAUNDRY AKTIF ===== */
+        .ao-card {
+            position: relative;
+            overflow: hidden;
+            padding: 1rem 1rem 1rem 1.25rem;
+            background: #fff;
+            border: 1px solid #eef2f7;
+            border-radius: 1.25rem;
+            box-shadow: 0 10px 30px -5px rgba(99, 102, 241, 0.08), 0 4px 12px -2px rgba(0, 0, 0, 0.03);
+            cursor: pointer;
+            transition: transform .15s ease, border-color .2s;
+        }
+        .ao-card::before {
+            content: '';
+            position: absolute;
+            left: 0; top: 0; bottom: 0;
+            width: 5px;
+            background: var(--c);
+        }
+        .ao-card:active { transform: scale(.985); }
+        .ao-card:hover { border-color: #c7d2fe; }
+        .ao-in { animation: roomIn .45s cubic-bezier(.2,.7,.2,1) backwards; animation-delay: calc(var(--i, 0) * 45ms); }
+        @media (prefers-reduced-motion: reduce) { .ao-in { animation: none; } }
+
+        /* ===== DASHBOARD ===== */
+        .home-drum {
+            position: absolute;
+            top: -70px; right: -70px;
+            width: 260px; height: 260px;
+            border-radius: 50%;
+            background:
+                radial-gradient(circle, rgba(255,255,255,.16) 0 22%, transparent 22.5%),
+                repeating-radial-gradient(circle, transparent 0 14px, rgba(255,255,255,.10) 14px 16px);
+            pointer-events: none;
+        }
+        .home-in { animation: roomIn .5s cubic-bezier(.2,.7,.2,1) backwards; animation-delay: calc(var(--i, 0) * 60ms + 80ms); }
+        .rm-cell {
+            display: flex; align-items: center; justify-content: center;
+            aspect-ratio: 1 / 1;
+            border-radius: .625rem;
+            font-size: 10px; font-weight: 700;
+        }
+        @media (prefers-reduced-motion: reduce) { .home-in { animation: none; } }
+
+        /* ===== RIWAYAT: garis waktu ===== */
+        .hist-day { position: relative; padding-left: 1.5rem; }
+        .hist-day::before {
+            content: '';
+            position: absolute;
+            left: 5px; top: 14px; bottom: -28px;
+            width: 2px;
+            background: #E0E7FF;
+        }
+        .hist-day:last-child::before { bottom: 0; }
+        .hist-dot {
+            position: absolute;
+            left: 0; top: 3px;
+            width: 12px; height: 12px;
+            border-radius: 50%;
+            background: #6366F1;
+            box-shadow: 0 0 0 4px #EEF2FF;
+        }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+
+    <!-- NAVIGASI: bottom bar (HP/tablet) / sidebar (desktop). Harus sebelum #screen-container -->
+    <nav id="bottom-nav" class="hidden">
+        <div class="nav-brand">
+            <div class="w-10 h-10 bg-gradient-brand rounded-xl flex items-center justify-center text-white shadow-glow">
+                <i class="fa-solid fa-jug-detergent"></i>
+            </div>
+            <div>
+                <p class="text-sm font-extrabold text-slate-800 leading-tight">Hotel Laundry</p>
+                <p class="text-[11px] text-slate-400 font-medium">Smart Laundry</p>
+            </div>
+        </div>
+        <button onclick="navigateTo('home')" id="nav-home" class="nav-item flex flex-col items-center p-2 text-indigo-600 transition-all">
+            <i class="fa-solid fa-house text-lg"></i>
+            <span class="text-[10px] font-semibold mt-1">Home</span>
+        </button>
+        <button onclick="navigateTo('rooms')" id="nav-rooms" class="nav-item flex flex-col items-center p-2 text-gray-400 transition-all">
+            <i class="fa-solid fa-door-open text-lg"></i>
+            <span class="text-[10px] font-semibold mt-1">Kamar</span>
+        </button>
+        <button onclick="openCreateOrderModal()" aria-label="Order baru" class="nav-fab flex flex-col items-center justify-center bg-gradient-brand text-white w-12 h-12 rounded-full shadow-glow -mt-5 hover:scale-105 active:scale-95 transition-all">
+            <i class="fa-solid fa-plus text-xl"></i>
+            <span class="nav-fab-label">Order Baru</span>
+        </button>
+        <button onclick="navigateTo('active-orders')" id="nav-orders" class="nav-item flex flex-col items-center p-2 text-gray-400 transition-all">
+            <i class="fa-solid fa-jug-detergent text-lg"></i>
+            <span class="text-[10px] font-semibold mt-1">Aktif</span>
+        </button>
+        <button onclick="navigateTo('history')" id="nav-history" class="nav-item flex flex-col items-center p-2 text-gray-400 transition-all">
+            <i class="fa-solid fa-clock-rotate-left text-lg"></i>
+            <span class="text-[10px] font-semibold mt-1">Riwayat</span>
+        </button>
+    </nav>
+
+    <!-- SCREEN CONTAINER -->
+    <div id="screen-container"></div>
+
+</div>
+
+<!-- MODAL VIEW -->
+<div id="modal-container" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"></div>
+
+<!-- TOAST NOTIFICATION -->
+<div id="toast-container" class="fixed top-4 left-1/2 -translate-x-1/2 z-[70] w-[92%] sm:w-auto flex flex-col items-center gap-2 pointer-events-none"></div>
+
+<!-- CUSTOM CONFIRM DIALOG -->
+<div id="confirm-container" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden z-[60] flex items-center justify-center p-4"></div>
+
+<script>
+    // ==========================================
+    // TOAST & CONFIRM (pengganti alert/confirm bawaan browser)
+    // ==========================================
+    function showToast(message, type = 'info') {
+        const container = document.getElementById('toast-container');
+        const styles = {
+            info: { bg: 'bg-white', border: 'border-indigo-100', icon: 'fa-circle-info', iconColor: 'text-indigo-500' },
+            success: { bg: 'bg-white', border: 'border-emerald-100', icon: 'fa-circle-check', iconColor: 'text-emerald-500' },
+            warn: { bg: 'bg-white', border: 'border-amber-100', icon: 'fa-triangle-exclamation', iconColor: 'text-amber-500' }
+        };
+        const s = styles[type] || styles.info;
+
+        const toast = document.createElement('div');
+        toast.className = `pointer-events-auto ${s.bg} ${s.border} border shadow-soft rounded-2xl px-4 py-3 flex items-start gap-2.5 max-w-sm animate-slide-up`;
+        toast.innerHTML = `
+            <i class="fa-solid ${s.icon} ${s.iconColor} text-sm mt-0.5 shrink-0"></i>
+            <p class="text-xs font-semibold text-slate-700 leading-snug flex-1">${message}</p>
+            <button onclick="this.closest('div.pointer-events-auto').remove()" class="text-slate-300 hover:text-slate-500 shrink-0">
+                <i class="fa-solid fa-xmark text-xs"></i>
+            </button>
+        `;
+        container.appendChild(toast);
+
+        setTimeout(() => {
+            toast.style.transition = 'opacity .3s ease';
+            toast.style.opacity = '0';
+            setTimeout(() => toast.remove(), 300);
+        }, 4000);
+    }
+
+    function showConfirm(message, onConfirm, options = {}) {
+        const box = document.getElementById('confirm-container');
+        const confirmLabel = options.confirmLabel || 'Ya, Lanjutkan';
+        const cancelLabel = options.cancelLabel || 'Batal';
+        const danger = options.danger !== false;
+
+        box.classList.remove('hidden');
+        box.innerHTML = `
+            <div class="bg-white w-full sm:max-w-sm rounded-3xl p-6 shadow-2xl animate-slide-up space-y-4">
+                <div class="w-12 h-12 rounded-2xl ${danger ? 'bg-red-50 text-red-500' : 'bg-indigo-50 text-indigo-600'} flex items-center justify-center">
+                    <i class="fa-solid ${danger ? 'fa-triangle-exclamation' : 'fa-circle-info'}"></i>
+                </div>
+                <p class="text-sm font-semibold text-slate-700 leading-relaxed">${message}</p>
+                <div class="flex gap-2 pt-1">
+                    <button id="confirm-cancel-btn" class="w-full py-3 bg-slate-100 text-slate-600 font-bold text-xs rounded-xl hover:bg-slate-200">${cancelLabel}</button>
+                    <button id="confirm-ok-btn" class="w-full py-3 ${danger ? 'bg-red-500 hover:bg-red-600' : 'bg-gradient-brand hover:opacity-95'} text-white font-bold text-xs rounded-xl shadow-glow">${confirmLabel}</button>
+                </div>
+            </div>
+        `;
+
+        const close = () => box.classList.add('hidden');
+        document.getElementById('confirm-cancel-btn').onclick = close;
+        document.getElementById('confirm-ok-btn').onclick = () => { close(); onConfirm(); };
+    }
+</script>
+
+<script>
+    // ==========================================
+    // PRICING & APP STATE
+    // ==========================================
+    const PRICING_RATES = {
+        regular: 30000,
+        express: 60000
+    };
+
+    const ROOM_LIST = [
+        '101', '102', '103', '104', '105', '106',
+        '201', '202', '203', '204', '205', '206',
+        '301', '302', '303', '304', '305', '306'
+    ];
+
+    // Mulai dari nol: tidak ada lagi data contoh. Format lama (berbasis "items") juga dikosongkan.
+    function initSeedData() {
+        const existing = localStorage.getItem('hl_orders');
+        if (!existing || existing.includes('"items"')) {
+            localStorage.setItem('hl_orders', '[]');
+        }
+    }
+
+    function getOrders() {
+        return JSON.parse(localStorage.getItem('hl_orders') || '[]');
+    }
+
+    function rawSaveOrders(orders) {
+        localStorage.setItem('hl_orders', JSON.stringify(orders));
+    }
+    // Setiap order yang berubah diberi cap waktu (untuk sinkronisasi); order yang hilang dicatat sebagai terhapus
+    function saveOrders(orders) {
+        const prev = new Map(getOrders().map(o => [o.id, JSON.stringify(o)]));
+        const now = new Date().toISOString();
+        const ids = new Set();
+        orders.forEach(o => {
+            ids.add(o.id);
+            if (prev.get(o.id) !== JSON.stringify(o)) o.updatedAt = now;
+        });
+        const tomb = getTombstones();
+        prev.forEach((_, id) => { if (!ids.has(id)) tomb.push({ id, at: now }); });
+        localStorage.setItem('hl_deleted', JSON.stringify(tomb));
+        rawSaveOrders(orders);
+        scheduleSync();
+    }
+
+    // ===== SVG ICONS (pengganti emoji) =====
+    const SVG_ICONS = {
+        hand: '<path d="M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2"/><path d="M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2"/><path d="M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/>',
+        sparkles: '<path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/><path d="M4 17v2"/><path d="M5 18H3"/>',
+        basket: '<path d="m15 11-1 9"/><path d="m19 11-4-7"/><path d="M2 11h20"/><path d="m3.5 11 1.6 7.4a2 2 0 0 0 2 1.6h9.8a2 2 0 0 0 2-1.6l1.7-7.4"/><path d="M4.5 15.5h15"/><path d="m5 11 4-7"/><path d="m9 11 1 9"/>',
+        zap: '<path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/>',
+        shirt: '<path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z"/>',
+        checkCircle: '<circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>',
+        x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+        calendar: '<path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/>',
+        pin: '<path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/>'
+    };
+
+    function svgIcon(name, cls = 'w-5 h-5') {
+        return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${SVG_ICONS[name]}</svg>`;
+    }
+
+    let currentScreen = 'welcome';
+    let roomDropdownOpen = false;
+    let reportMonth = (() => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); })();
+    let pendingImportOrders = null;
+    let currentStaff = null;
+    let currentParams = null;
+    let editingOrderId = null; // null = order baru, berisi ID = sedang mengedit order
+    let newOrderState = {
+        room: '101',
+        guestName: '',
+        service: 'regular',
+        weightKg: 1.5,
+        guestRequest: '',
+        photoBefore: null,
+        photoAfter: null
+    };
+
+    window.addEventListener('DOMContentLoaded', async () => {
+        initSeedData();
+        await initStaffData();
+        currentStaff = loadSession();
+        navigateTo(currentStaff ? 'home' : 'welcome');
+        startAutoSync();
+        syncNow();
+    });
+
+    function navigateTo(screenId, params = null) {
+        // Semua layar selain welcome/login butuh sesi login yang masih berlaku
+        if (!['welcome', 'login'].includes(screenId)) {
+            currentStaff = loadSession();
+            if (!currentStaff) {
+                if (currentScreen !== 'login') showToast('Silakan login terlebih dahulu.', 'warn');
+                screenId = 'login';
+                params = null;
+            }
+        }
+        currentParams = params;
+        currentScreen = screenId;
+        const container = document.getElementById('screen-container');
+        const nav = document.getElementById('bottom-nav');
+
+        container.classList.toggle('is-main', !['welcome', 'login'].includes(screenId));
+
+        if (['welcome', 'login'].includes(screenId)) {
+            nav.classList.add('hidden');
+        } else {
+            nav.classList.remove('hidden');
+            updateNavActiveState(screenId);
+        }
+
+        switch (screenId) {
+            case 'welcome':
+                container.innerHTML = renderWelcomeScreen();
+                break;
+            case 'login':
+                container.innerHTML = renderLoginScreen();
+                break;
+            case 'home':
+                container.innerHTML = renderHomeScreen();
+                break;
+            case 'rooms':
+                container.innerHTML = renderRoomsScreen();
+                break;
+            case 'active-orders':
+                container.innerHTML = renderActiveOrdersScreen();
+                break;
+            case 'history':
+                container.innerHTML = renderHistoryScreen();
+                break;
+            case 'order-detail':
+                container.innerHTML = renderOrderDetailScreen(params);
+                break;
+            case 'settings':
+                container.innerHTML = renderSettingsScreen();
+                break;
+            default:
+                container.innerHTML = renderHomeScreen();
+        }
+
+        container.scrollTop = 0;
+    }
+
+    function updateNavActiveState(screenId) {
+        document.querySelectorAll('.nav-item').forEach(btn => {
+            btn.classList.remove('text-indigo-600');
+            btn.classList.add('text-gray-400');
+        });
+        const activeNav = document.getElementById(`nav-${screenId}`);
+        if (activeNav) {
+            activeNav.classList.remove('text-gray-400');
+            activeNav.classList.add('text-indigo-600');
+        }
+    }
+
+    // Helper Formatter
+    function formatRp(amount) {
+        return 'Rp' + Math.round(amount).toLocaleString('id-ID');
+    }
+
+    function formatWeightDisplay(weight) {
+        if (weight === undefined || weight === null || isNaN(weight)) return '0';
+        return weight.toString().replace('.', ',');
+    }
+
+    function calculateOrderTotals(weightKg, serviceType) {
+        const weight = parseFloat(weightKg) || 0;
+        const rate = PRICING_RATES[serviceType] || PRICING_RATES.regular;
+        const totalPrice = weight * rate;
+        return { weightKg: weight, totalPrice, rate };
+    }
+
+
+    // ==========================================
+    // AUTH: AKUN STAF, SESI, KATA SANDI
+    // Catatan: aplikasi ini berjalan sepenuhnya di browser, jadi ini menghalangi
+    // akses biasa, bukan pengganti keamanan server.
+    // ==========================================
+    const SESSION_HOURS = 12;
+    const MAX_LOGIN_TRIES = 5;
+    const LOCK_SECONDS = 60;
+    const DEFAULT_PASSWORD = '12345678';
+    const AUTH_INPUT = 'w-full py-3 px-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 font-medium text-sm focus:bg-white focus:outline-none focus:border-indigo-500';
+
+    function escapeHtml(v) {
+        return String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+    function getStaff() {
+        try { return JSON.parse(localStorage.getItem('hl_staff') || '[]'); } catch (e) { return []; }
+    }
+    function saveStaff(list) {
+        localStorage.setItem('hl_staff', JSON.stringify(list));
+        localStorage.setItem('hl_staff_at', String(Date.now()));
+        scheduleSync();
+    }
+    function isAdmin() { return !!currentStaff && currentStaff.role === 'admin'; }
+
+    function randomSalt() {
+        const a = new Uint8Array(16);
+        crypto.getRandomValues(a);
+        return Array.from(a).map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+    async function hashSecret(secret, salt) {
+        const data = new TextEncoder().encode(salt + ':' + secret);
+        if (window.crypto && crypto.subtle) {
+            const buf = await crypto.subtle.digest('SHA-256', data);
+            return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+        // Cadangan bila browser tidak menyediakan crypto.subtle (halaman non-HTTPS)
+        let h1 = 0x811c9dc5, h2 = 0x9e3779b9;
+        for (const b of data) { h1 = Math.imul(h1 ^ b, 16777619); h2 = Math.imul(h2 ^ b, 2246822519) + h1 | 0; }
+        return 'f' + (h1 >>> 0).toString(16) + (h2 >>> 0).toString(16);
+    }
+
+    async function initStaffData() {
+        if (getStaff().length) return;
+        const salt = randomSalt();
+        localStorage.setItem('hl_staff', JSON.stringify([{
+            id: 'STF-8820', name: 'Admin Housekeeping', role: 'admin',
+            salt, hash: await hashSecret(DEFAULT_PASSWORD, salt),
+            mustChange: true, createdAt: new Date().toISOString()
+        }]));
+    }
+
+    function loadSession() {
+        try {
+            const sess = JSON.parse(localStorage.getItem('hl_session') || 'null');
+            if (!sess || Date.now() > sess.expires) { localStorage.removeItem('hl_session'); return null; }
+            return getStaff().find(x => x.id === sess.id) || null;
+        } catch (e) { return null; }
+    }
+    function startSession(staff) {
+        currentStaff = staff;
+        localStorage.setItem('hl_session', JSON.stringify({ id: staff.id, expires: Date.now() + SESSION_HOURS * 3600 * 1000 }));
+    }
+    function logout() {
+        currentStaff = null;
+        localStorage.removeItem('hl_session');
+        closeModal();
+        navigateTo('welcome');
+        showToast('Anda sudah keluar.', 'info');
+    }
+
+    function readLoginFail() {
+        try { return JSON.parse(localStorage.getItem('hl_login_fail') || '{}'); } catch (e) { return {}; }
+    }
+    function loginLockRemaining() {
+        const f = readLoginFail();
+        return f.until && f.until > Date.now() ? Math.ceil((f.until - Date.now()) / 1000) : 0;
+    }
+    function registerFailedLogin() {
+        const count = (readLoginFail().count || 0) + 1;
+        const locked = count >= MAX_LOGIN_TRIES;
+        localStorage.setItem('hl_login_fail', JSON.stringify({ count: locked ? 0 : count, until: locked ? Date.now() + LOCK_SECONDS * 1000 : 0 }));
+        return locked;
+    }
+
+    async function handleLogin(event) {
+        event.preventDefault();
+        const errEl = document.getElementById('loginError');
+        const btn = document.getElementById('loginSubmitBtn');
+        const showErr = msg => { errEl.textContent = msg; errEl.classList.remove('hidden'); };
+        errEl.classList.add('hidden');
+
+        const wait = loginLockRemaining();
+        if (wait > 0) { showErr('Terlalu banyak percobaan gagal. Coba lagi dalam ' + wait + ' detik.'); return; }
+
+        const id = document.getElementById('loginIdInput').value.trim().toUpperCase();
+        const pw = document.getElementById('loginPasswordInput').value;
+        btn.disabled = true;
+        // Ambil daftar staf terbaru dari server (maks. 4 detik) sebelum memeriksa login
+        if (getSyncCfg().url) await Promise.race([syncNow(), new Promise(r => setTimeout(r, 4000))]);
+        const staff = getStaff().find(x => x.id.toUpperCase() === id);
+        const hash = await hashSecret(pw, staff ? staff.salt : 'none');
+        btn.disabled = false;
+
+        if (!staff || hash !== staff.hash) {
+            const locked = registerFailedLogin();
+            document.getElementById('loginPasswordInput').value = '';
+            showErr(locked ? 'Terlalu banyak percobaan gagal. Login dikunci ' + LOCK_SECONDS + ' detik.' : 'ID staf atau kata sandi salah.');
+            return;
+        }
+        localStorage.removeItem('hl_login_fail');
+        startSession(staff);
+        navigateTo('home');
+        showToast('Selamat datang, ' + escapeHtml(staff.name) + '!', 'success');
+        if (staff.mustChange) setTimeout(() => openPasswordModal(staff.id, true), 400);
+    }
+
+    function authModalShell(title, subtitle, body) {
+        const modal = document.getElementById('modal-container');
+        modal.classList.remove('hidden');
+        modal.innerHTML = `
+            <div class="bg-white w-full sm:max-w-md max-h-[92dvh] rounded-t-3xl sm:rounded-3xl flex flex-col overflow-hidden animate-slide-up shadow-2xl">
+                <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                    <div>
+                        <h3 class="text-base font-extrabold text-slate-800">${title}</h3>
+                        <p class="text-xs text-slate-500">${subtitle}</p>
+                    </div>
+                    <button onclick="closeModal()" aria-label="Tutup" class="w-8 h-8 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-xs font-bold"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="flex-1 min-h-0 overflow-y-auto p-6 space-y-4" style="padding-bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px));">${body}</div>
+            </div>`;
+    }
+    function authField(id, label, type, placeholder, extra = '') {
+        return `<div><label class="block text-xs font-bold text-slate-600 uppercase mb-1">${label}</label>
+            <input id="${id}" type="${type}" placeholder="${placeholder}" ${extra} class="${AUTH_INPUT}"></div>`;
+    }
+    const AUTH_ERR = '<p id="authError" class="hidden text-xs font-semibold text-red-600 bg-red-50 border border-red-100 rounded-xl px-3 py-2"></p>';
+    function authError(msg) {
+        const el = document.getElementById('authError');
+        if (el) { el.textContent = msg; el.classList.remove('hidden'); }
+    }
+    const authVal = id => (document.getElementById(id) || {}).value || '';
+
+    function openPasswordModal(targetId, forced = false) {
+        const target = getStaff().find(x => x.id === targetId);
+        const self = !!currentStaff && currentStaff.id === targetId;
+        if (!target || !currentStaff || (!self && !isAdmin())) return;
+        const needOld = self && !forced;
+        authModalShell(
+            forced ? 'Ganti Kata Sandi Bawaan' : (self ? 'Ganti Kata Sandi' : 'Atur Ulang Kata Sandi'),
+            forced ? 'Akun ini masih memakai kata sandi awal. Buat yang baru.' : escapeHtml(target.name) + ' (' + escapeHtml(target.id) + ')',
+            (needOld ? authField('pwOld', 'Kata sandi saat ini', 'password', '', 'autocomplete="current-password"') : '') +
+            authField('pwNew', 'Kata sandi baru', 'password', 'Minimal 6 karakter', 'autocomplete="new-password"') +
+            authField('pwNew2', 'Ulangi kata sandi baru', 'password', '', 'autocomplete="new-password"') +
+            AUTH_ERR +
+            `<button onclick="submitPasswordChange('${escapeHtml(targetId)}', ${needOld})" class="w-full py-3.5 bg-gradient-brand text-white font-bold text-sm rounded-2xl shadow-glow">Simpan Kata Sandi</button>`
+        );
+    }
+
+    async function submitPasswordChange(targetId, needOld) {
+        const list = getStaff();
+        const t = list.find(x => x.id === targetId);
+        if (!t) return;
+        const p1 = authVal('pwNew'), p2 = authVal('pwNew2');
+        if (needOld && (await hashSecret(authVal('pwOld'), t.salt)) !== t.hash) return authError('Kata sandi saat ini salah.');
+        if (p1.length < 6) return authError('Kata sandi baru minimal 6 karakter.');
+        if (p1 !== p2) return authError('Konfirmasi kata sandi tidak sama.');
+        if (p1 === DEFAULT_PASSWORD) return authError('Pilih kata sandi selain kata sandi bawaan.');
+        const self = !!currentStaff && currentStaff.id === targetId;
+        t.salt = randomSalt();
+        t.hash = await hashSecret(p1, t.salt);
+        t.mustChange = !self; // diatur ulang admin -> staf wajib menggantinya saat login
+        saveStaff(list);
+        closeModal();
+        showToast('Kata sandi berhasil diperbarui.', 'success');
+        if (self) currentStaff = loadSession();
+        if (currentScreen === 'settings') navigateTo('settings');
+    }
+
+    function openStaffModal() {
+        if (!isAdmin()) return;
+        const rows = getStaff().map(m => {
+            const me = m.id === currentStaff.id;
+            return `<div class="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-100">
+                <div class="min-w-0 flex-1">
+                    <p class="text-sm font-bold text-slate-800 truncate">${escapeHtml(m.name)}${me ? ' <span class="text-[10px] text-indigo-500 font-bold">(Anda)</span>' : ''}</p>
+                    <p class="text-[11px] text-slate-400">${escapeHtml(m.id)} • ${m.role === 'admin' ? 'Admin' : 'Staf'}${m.mustChange ? ' • wajib ganti sandi' : ''}</p>
+                </div>
+                <button onclick="openPasswordModal('${escapeHtml(m.id)}')" aria-label="Atur ulang kata sandi" class="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-xs"><i class="fa-solid fa-key"></i></button>
+                ${me ? '' : `<button onclick="deleteStaff('${escapeHtml(m.id)}')" aria-label="Hapus staf" class="w-9 h-9 rounded-xl bg-red-50 text-red-500 flex items-center justify-center text-xs"><i class="fa-solid fa-trash-can"></i></button>`}
+            </div>`;
+        }).join('');
+        authModalShell('Kelola Staf', 'Tambah, atur ulang sandi, atau hapus akun',
+            `<div class="space-y-2">${rows}</div>
+            <div class="pt-4 border-t border-slate-100 space-y-3">
+                <h4 class="text-xs font-extrabold text-slate-700">Tambah staf baru</h4>
+                ${authField('stfId', 'ID Staf', 'text', 'Contoh: STF-1001', 'autocapitalize="characters"')}
+                ${authField('stfName', 'Nama', 'text', 'Nama lengkap')}
+                ${authField('stfPw', 'Kata sandi awal', 'text', 'Minimal 6 karakter (staf wajib menggantinya)')}
+                <div><label class="block text-xs font-bold text-slate-600 uppercase mb-1">Peran</label>
+                    <select id="stfRole" class="${AUTH_INPUT}"><option value="staff">Staf</option><option value="admin">Admin</option></select></div>
+                ${AUTH_ERR}
+                <button onclick="addStaff()" class="w-full py-3.5 bg-gradient-brand text-white font-bold text-sm rounded-2xl shadow-glow">Tambah Staf</button>
+            </div>`);
+    }
+
+    async function addStaff() {
+        if (!isAdmin()) return;
+        const id = authVal('stfId').trim().toUpperCase(), name = authVal('stfName').trim(), pw = authVal('stfPw'), role = authVal('stfRole') === 'admin' ? 'admin' : 'staff';
+        const list = getStaff();
+        if (!/^[A-Z0-9-]{3,20}$/.test(id)) return authError('ID staf 3-20 karakter: huruf, angka, atau tanda hubung.');
+        if (list.some(m => m.id.toUpperCase() === id)) return authError('ID staf sudah dipakai.');
+        if (!name) return authError('Nama wajib diisi.');
+        if (pw.length < 6) return authError('Kata sandi awal minimal 6 karakter.');
+        const salt = randomSalt();
+        list.push({ id, name, role, salt, hash: await hashSecret(pw, salt), mustChange: true, createdAt: new Date().toISOString() });
+        saveStaff(list);
+        showToast('Staf ' + escapeHtml(name) + ' ditambahkan.', 'success');
+        openStaffModal();
+    }
+
+    function deleteStaff(id) {
+        if (!isAdmin() || id === currentStaff.id) return;
+        showConfirm('Hapus akun ' + id + '? Staf ini tidak bisa login lagi.', () => {
+            saveStaff(getStaff().filter(m => m.id !== id));
+            showToast('Akun staf dihapus.', 'success');
+            openStaffModal();
+        }, { confirmLabel: 'Ya, Hapus', danger: true });
+    }
+
+    function renderAccountCard() {
+        if (!currentStaff) return '';
+        const initial = escapeHtml((currentStaff.name || '?').trim().charAt(0).toUpperCase());
+        return `
+            <div class="bg-white rounded-3xl p-5 shadow-soft border border-slate-100 space-y-4">
+                <div class="flex items-center gap-3">
+                    <span class="w-11 h-11 shrink-0 rounded-2xl bg-gradient-brand text-white flex items-center justify-center font-extrabold">${initial}</span>
+                    <div class="min-w-0">
+                        <h3 class="text-sm font-extrabold text-slate-800 truncate">${escapeHtml(currentStaff.name)}</h3>
+                        <p class="text-[11px] text-slate-400">${escapeHtml(currentStaff.id)} • ${isAdmin() ? 'Admin' : 'Staf'}</p>
+                    </div>
+                </div>
+                ${currentStaff.mustChange ? `<div class="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">Kata sandi Anda masih bawaan. Ganti sekarang agar akun aman.</div>` : ''}
+                <div class="flex items-center justify-between gap-3 text-[11px] text-slate-500 bg-slate-50 rounded-xl px-3 py-2">
+                    <span class="min-w-0"><i class="fa-solid fa-cloud"></i>&nbsp; ${escapeHtml(syncStatusText())}</span>
+                    ${getSyncCfg().url ? `<button onclick="syncNow(true).then(() => currentScreen === 'settings' && navigateTo('settings'))" class="shrink-0 font-bold text-indigo-600">Sinkronkan</button>` : ''}
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="openPasswordModal('${escapeHtml(currentStaff.id)}', ${currentStaff.mustChange ? 'true' : 'false'})" class="py-3 rounded-2xl bg-indigo-50 text-indigo-600 font-bold text-xs"><i class="fa-solid fa-key"></i>&nbsp; Ganti Kata Sandi</button>
+                    <button onclick="logout()" class="py-3 rounded-2xl bg-red-50 text-red-500 font-bold text-xs"><i class="fa-solid fa-right-from-bracket"></i>&nbsp; Keluar</button>
+                    ${isAdmin() ? `<button onclick="openStaffModal()" class="py-3 rounded-2xl bg-slate-100 text-slate-700 font-bold text-xs"><i class="fa-solid fa-users-gear"></i>&nbsp; Kelola Staf</button>
+                    <button onclick="openSyncModal()" class="py-3 rounded-2xl bg-slate-100 text-slate-700 font-bold text-xs"><i class="fa-solid fa-cloud"></i>&nbsp; Sinkronisasi</button>` : ''}
+                </div>
+            </div>`;
+    }
+
+
+    // ==========================================
+    // SINKRONISASI ANTAR HP (Google Apps Script + Google Sheets)
+    // Aturan: catatan terbaru (updatedAt) menang. Jam HP harus akurat.
+    // ==========================================
+    // URL Web App boleh diisi di sini agar tidak perlu diketik di tiap HP.
+    // JANGAN menaruh kunci rahasia (API_KEY) di file ini: siapa pun yang membuka aplikasi bisa membacanya.
+    const DEFAULT_SYNC_URL = 'https://script.google.com/macros/s/AKfycbxD0Zb86RPhjd98lnW1tSJXHO_t5f_alDTjMUOgobchNVrt0z2Od9MVYJu4BrwB0_2nqQ/exec';
+    const SYNC_INTERVAL_MS = 30000;
+    let syncBusy = false, syncTimer = null, autoSyncStarted = false;
+
+    function getSyncCfg() { try { return JSON.parse(localStorage.getItem('hl_sync') || '{}'); } catch (e) { return {}; } }
+    function setSyncCfg(c) { localStorage.setItem('hl_sync', JSON.stringify(c)); }
+    function getTombstones() { try { return JSON.parse(localStorage.getItem('hl_deleted') || '[]'); } catch (e) { return []; } }
+    function scheduleSync() {
+        if (!getSyncCfg().url) return;
+        clearTimeout(syncTimer);
+        syncTimer = setTimeout(() => syncNow(), 1500);
+    }
+    function fetchWithTimeout(url, opts, ms) {
+        const ctl = new AbortController();
+        const t = setTimeout(() => ctl.abort(), ms);
+        return fetch(url, { ...opts, signal: ctl.signal }).finally(() => clearTimeout(t));
+    }
+    async function readJsonResponse(r) {
+        const text = await r.text();
+        try { return JSON.parse(text); }
+        catch (e) { throw new Error('server mengirim halaman web, bukan data. Cek akses deploy "Anyone" dan pastikan Code.gs sudah di-deploy sebagai versi terbaru'); }
+    }
+    function syncStatusText() {
+        const c = getSyncCfg();
+        if (!c.url) return 'Belum terhubung. Data hanya ada di HP ini.';
+        if (c.lastError) return 'Gagal sinkron: ' + c.lastError;
+        return c.lastSyncAt ? 'Terhubung. Sinkron terakhir ' + timeAgo(c.lastSyncAt) : 'Terhubung. Belum pernah sinkron.';
+    }
+
+    async function syncNow(manual = false) {
+        const cfg = getSyncCfg();
+        if (!cfg.url || syncBusy) return false;
+        syncBusy = true;
+        try {
+            const sentAt = new Date().toISOString();
+            const local = getOrders();
+            let stamped = false;
+            local.forEach(o => { if (!o.updatedAt) { o.updatedAt = o.createdAt; stamped = true; } });
+            if (stamped) rawSaveOrders(local);
+            const toPush = local.filter(o => !cfg.lastPushAt || o.updatedAt > cfg.lastPushAt);
+            const tomb = getTombstones();
+            const res = await fetchWithTimeout(cfg.url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify({
+                    key: cfg.key, orders: toPush, deleted: tomb,
+                    staff: { list: getStaff(), at: Number(localStorage.getItem('hl_staff_at') || 0) }
+                })
+            }, 60000).then(readJsonResponse);
+            if (!res.ok) throw new Error(res.error || 'Server menolak permintaan');
+            applySyncResult(res, sentAt, tomb);
+            setSyncCfg({ ...getSyncCfg(), lastPushAt: sentAt, lastSyncAt: new Date().toISOString(), lastError: '' });
+            if (manual) showToast('Sinkronisasi berhasil.', 'success');
+            return true;
+        } catch (err) {
+            const msg = err.name === 'AbortError' ? 'server tidak merespons'
+                : (err instanceof TypeError ? 'tidak ada koneksi ke server' : (err.message || 'kesalahan tidak dikenal'));
+            setSyncCfg({ ...getSyncCfg(), lastError: msg });
+            if (manual) showToast('Sinkronisasi gagal: ' + escapeHtml(msg), 'warn');
+            return false;
+        } finally {
+            syncBusy = false;
+        }
+    }
+
+    function applySyncResult(res, sentAt, sentTomb) {
+        // Hasil server dipakai, kecuali order yang baru diubah di HP ini selama proses berjalan
+        const out = new Map(res.orders.map(o => [o.id, o]));
+        getOrders().forEach(l => { if ((l.updatedAt || '') > sentAt) out.set(l.id, l); });
+        const sent = new Set(sentTomb.map(d => d.id));
+        const remaining = getTombstones().filter(d => !sent.has(d.id));
+        remaining.forEach(d => out.delete(d.id));
+        localStorage.setItem('hl_deleted', JSON.stringify(remaining));
+
+        const merged = [...out.values()].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        let changed = JSON.stringify(merged) !== JSON.stringify(getOrders());
+        if (changed) rawSaveOrders(merged);
+
+        if (res.staff && res.staff.list && res.staff.list.length) {
+            if (JSON.stringify(res.staff.list) !== JSON.stringify(getStaff())) {
+                localStorage.setItem('hl_staff', JSON.stringify(res.staff.list));
+                changed = true;
+            }
+            localStorage.setItem('hl_staff_at', String(res.staff.at || 0));
+        }
+        if (changed) refreshAfterSync();
+    }
+
+    function refreshAfterSync() {
+        const open = id => !document.getElementById(id).classList.contains('hidden');
+        const ae = document.activeElement;
+        const typing = ae && ['INPUT', 'TEXTAREA', 'SELECT'].includes(ae.tagName);
+        if (open('modal-container') || open('confirm-container') || typing || ['welcome', 'login'].includes(currentScreen)) return;
+        const box = document.getElementById('screen-container');
+        const top = box.scrollTop;
+        navigateTo(currentScreen, currentParams);
+        box.scrollTop = top;
+    }
+
+    function startAutoSync() {
+        if (autoSyncStarted || !getSyncCfg().url) return;
+        autoSyncStarted = true;
+        setInterval(() => { if (!document.hidden && currentStaff) syncNow(); }, SYNC_INTERVAL_MS);
+        document.addEventListener('visibilitychange', () => { if (!document.hidden && currentStaff) syncNow(); });
+        window.addEventListener('online', () => syncNow());
+    }
+
+    function openSyncModal() {
+        const c = getSyncCfg();
+        authModalShell('Sinkronisasi Data', 'Samakan data order dan staf di semua HP',
+            `<p class="text-xs text-slate-500">${escapeHtml(syncStatusText())}</p>` +
+            authField('syncUrl', 'URL Web App', 'url', 'https://script.googleusercontent.com/macros/echo?user_content_key=AUkAhnS-vbbnWd6hJpAvqc9jOHd6Z5fmWwXIsmL8qL3OzMGEpa821wvTHxyBVOXzKys_B2nWkYhbnfM1lHpsvlsjgiIPgzBg6pOdpTxnKc5KQf8wtsXMLYh6-C8aSwG545BplvdNikWoAE0bVv2Q19SFfig5t3h5TxioMmxMHx9UUYgOHs-oaIWarBZIzAmR9dSIb68slRBuX5RLmYGgh2B43QM_lwc2DsZLT3Uhjz1lZ0YV4MnLhSY3ytJ4Q_7A6FrmOIbj4Gs4P0WxmREX39SrT0ati1aP6w&lib=MT82NPlZKmAxKOe7cR_hvrZjIdsifmOXq', `value="${escapeHtml(c.url || DEFAULT_SYNC_URL)}"`) +
+            authField('syncKey', 'Kunci rahasia', 'password', 'CENTRAL2026', `value="${escapeHtml(c.key || '')}" autocomplete="off"`) +
+            AUTH_ERR +
+            `<button id="syncSaveBtn" onclick="saveSyncConfig()" class="disabled:opacity-60 w-full py-3.5 bg-gradient-brand text-white font-bold text-sm rounded-2xl shadow-glow">Simpan & Sinkronkan</button>` +
+            (c.url && isAdmin() ? `<button onclick="disconnectSync()" class="w-full py-3 rounded-2xl bg-red-50 text-red-500 font-bold text-xs">Putuskan Sinkronisasi</button>` : ''));
+    }
+
+    async function saveSyncConfig() {
+        const url = authVal('syncUrl').trim(), key = authVal('syncKey').trim();
+        if (!/^https:\/\/script\.google\.com\/.+\/exec$/.test(url)) return authError('URL harus alamat Web App Apps Script yang berakhiran /exec.');
+        if (!key) return authError('Kunci rahasia wajib diisi.');
+        if (syncBusy) return authError('Sinkronisasi sebelumnya masih berjalan (bisa sampai 1 menit). Tunggu sebentar lalu coba lagi.');
+
+        const btn = document.getElementById('syncSaveBtn');
+        const setBusy = on => { if (btn) { btn.disabled = on; btn.textContent = on ? 'Menyambungkan...' : 'Simpan & Sinkronkan'; } };
+        const errBox = document.getElementById('authError');
+        if (errBox) errBox.classList.add('hidden');
+        setBusy(true);
+        try {
+            // Tes cepat: apakah alamat server bisa dibuka dari browser?
+            try {
+                const ping = await fetchWithTimeout(url, {}, 15000).then(readJsonResponse);
+                if (!ping.ok) throw new Error('bukan server Hotel Laundry');
+            } catch (e) {
+                return authError('Alamat server tidak bisa dibuka. Pastikan deploy memakai akses "Anyone" dan URL berakhiran /exec (bukan /dev).');
+            }
+            const old = getSyncCfg();
+            setSyncCfg({ url, key, lastPushAt: old.url === url ? (old.lastPushAt || '') : '', lastSyncAt: old.lastSyncAt || '', lastError: '' });
+            if (!(await syncNow(true))) return authError('Gagal tersambung: ' + (getSyncCfg().lastError || 'penyebab tidak diketahui') + '.');
+            closeModal();
+            startAutoSync();
+            if (currentScreen === 'settings') navigateTo('settings');
+        } finally {
+            setBusy(false);
+        }
+    }
+
+    function disconnectSync() {
+        if (!isAdmin()) return;
+        showConfirm('Putuskan sinkronisasi? Data di HP ini tetap ada, tetapi tidak lagi disamakan dengan HP lain.', () => {
+            localStorage.removeItem('hl_sync');
+            localStorage.removeItem('hl_deleted');
+            closeModal();
+            showToast('Sinkronisasi diputuskan.', 'success');
+            if (currentScreen === 'settings') navigateTo('settings');
+        }, { confirmLabel: 'Ya, Putuskan', danger: true });
+    }
+
+    // ==========================================
+    // SCREENS
+    // ==========================================
+    function renderWelcomeScreen() {
+        return `
+            <div class="h-full flex flex-col justify-center items-center p-5 sm:p-6 text-center bg-gradient-to-b from-indigo-50 via-white to-blue-50 relative overflow-hidden">
+                <!-- Dekorasi blob gradient -->
+                <div class="pointer-events-none absolute -top-16 -left-16 w-56 h-56 bg-indigo-300 opacity-25 rounded-full blur-3xl"></div>
+                <div class="pointer-events-none absolute -bottom-20 -right-16 w-64 h-64 bg-purple-300 opacity-25 rounded-full blur-3xl"></div>
+                <div class="pointer-events-none absolute top-1/3 right-4 w-3 h-3 bg-indigo-400 rounded-full opacity-40"></div>
+                <div class="pointer-events-none absolute bottom-1/4 left-6 w-2 h-2 bg-purple-400 rounded-full opacity-40"></div>
+
+                <div class="w-full max-w-md h-full flex flex-col justify-between items-center relative z-10 py-3">
+
+                <div class="shrink-0 flex flex-col items-center">
+                    <div class="w-16 h-16 bg-gradient-brand rounded-2xl shadow-glow flex items-center justify-center text-white mb-3 ring-4 ring-white">
+                        <i class="fa-solid fa-jug-detergent text-2xl"></i>
+                    </div>
+                    <span class="text-[11px] font-bold uppercase tracking-widest text-indigo-600 bg-indigo-100 px-3 py-1 rounded-full">Hotel Laundry</span>
+                </div>
+
+                <div class="flex-1 min-h-0 flex items-center justify-center w-full py-2">
+                    <div class="relative aspect-square w-full max-w-[46vw] sm:max-w-[220px] max-h-[34vh] bg-gradient-to-br from-indigo-100 to-purple-100 rounded-full flex items-center justify-center shadow-inner">
+                        <div class="absolute inset-3 rounded-full border-2 border-white/70"></div>
+                        <svg class="w-[68%] h-[68%] drop-shadow-lg" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="35" y="30" width="130" height="145" rx="24" fill="url(#grad1)"/>
+                            <circle cx="100" cy="115" r="42" fill="#FFFFFF" opacity="0.9"/>
+                            <circle cx="100" cy="115" r="32" fill="#3B82F6" opacity="0.8"/>
+                            <path d="M78 115 C88 105, 112 125, 122 115" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round"/>
+                            <circle cx="88" cy="100" r="4" fill="#FFFFFF"/>
+                            <circle cx="112" cy="108" r="6" fill="#FFFFFF"/>
+                            <circle cx="60" cy="52" r="6" fill="#3B82F6"/>
+                            <circle cx="78" cy="52" r="4" fill="#93C5FD"/>
+                            <rect x="110" y="48" width="30" height="8" rx="4" fill="#3B82F6"/>
+                            <defs>
+                                <linearGradient id="grad1" x1="35" y1="30" x2="165" y2="175" gradientUnits="userSpaceOnUse">
+                                    <stop stop-color="#60A5FA"/>
+                                    <stop offset="1" stop-color="#8B5CF6"/>
+                                </linearGradient>
+                            </defs>
+                        </svg>
+                    </div>
+                </div>
+
+                <div class="shrink-0 w-full space-y-4">
+                    <div class="space-y-1.5 px-2">
+                        <h1 class="text-xl sm:text-2xl font-extrabold tracking-tight bg-gradient-brand bg-clip-text text-transparent">Hotel Laundry</h1>
+                        <p class="text-slate-500 text-xs sm:text-sm leading-relaxed px-4">Kelola laundry tamu hotel dengan perhitungan sistem Kiloan otomatis.</p>
+                    </div>
+
+                    <button onclick="navigateTo('login')" class="w-full py-3.5 sm:py-4 bg-gradient-brand text-white font-bold rounded-2xl shadow-glow hover:opacity-95 active:scale-[0.98] transition-all flex items-center justify-center gap-2">
+                        Mulai Sekarang <i class="fa-solid fa-arrow-right text-sm"></i>
+                    </button>
+                </div>
+                </div>
+            </div>
+        `;
+    }
+
+    function renderLoginScreen() {
+        return `
+            <div class="min-h-full relative overflow-hidden flex justify-center p-6 bg-gradient-to-b from-indigo-50 via-white to-blue-50">
+                <!-- Dekorasi blob gradient -->
+                <div class="pointer-events-none absolute -top-20 -right-24 w-72 h-72 bg-gradient-brand opacity-20 rounded-full blur-3xl"></div>
+                <div class="pointer-events-none absolute -bottom-24 -left-20 w-72 h-72 bg-blue-400 opacity-20 rounded-full blur-3xl"></div>
+
+                <div class="w-full max-w-md flex flex-col justify-between sm:justify-center sm:gap-8 relative z-10">
+                <div>
+                    <button onclick="navigateTo('welcome')" class="w-10 h-10 rounded-xl bg-white/80 backdrop-blur border border-white flex items-center justify-center text-slate-600 shadow-soft mb-6 hover:bg-white transition-all">
+                        <i class="fa-solid fa-chevron-left"></i>
+                    </button>
+
+                    <!-- Hero Card -->
+                    <div class="bg-gradient-brand rounded-3xl p-6 text-white shadow-glow mb-6 relative overflow-hidden">
+                        <div class="absolute -right-6 -top-6 w-28 h-28 bg-white/10 rounded-full"></div>
+                        <div class="absolute -right-2 bottom-2 w-16 h-16 bg-white/10 rounded-full"></div>
+                        <div class="relative z-10 flex items-center gap-4">
+                            <div class="w-14 h-14 shrink-0 bg-white/20 backdrop-blur rounded-2xl flex items-center justify-center text-2xl shadow-inner">
+                                <i class="fa-solid fa-jug-detergent"></i>
+                            </div>
+                            <div>
+                                <h2 class="text-xl font-extrabold flex items-center gap-1.5">Selamat Datang ${svgIcon('hand', 'inline-block w-5 h-5 text-amber-300')}</h2>
+                                <p class="text-indigo-100 text-xs mt-0.5">Masuk untuk mengelola pesanan laundry</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <form onsubmit="handleLogin(event)" class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">ID Staf</label>
+                            <div class="relative">
+                                <span class="absolute inset-y-0 left-0 pl-4 flex items-center text-indigo-400">
+                                    <i class="fa-solid fa-id-badge"></i>
+                                </span>
+                                <input id="loginIdInput" type="text" autocomplete="username" autocapitalize="characters" placeholder="Contoh: STF-8820" required class="w-full pl-11 pr-4 py-3.5 bg-white border border-slate-200 rounded-2xl text-slate-800 font-semibold focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 shadow-soft transition-all text-sm">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Kata Sandi</label>
+                            <div class="relative">
+                                <span class="absolute inset-y-0 left-0 pl-4 flex items-center text-indigo-400">
+                                    <i class="fa-solid fa-lock"></i>
+                                </span>
+                                <input id="loginPasswordInput" type="password" autocomplete="current-password" placeholder="Kata sandi" required class="w-full pl-11 pr-11 py-3.5 bg-white border border-slate-200 rounded-2xl text-slate-800 font-semibold focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 shadow-soft transition-all text-sm">
+                                <button type="button" onclick="const el = document.getElementById('loginPasswordInput'); const icon = document.getElementById('loginPasswordIcon'); const isPw = el.type === 'password'; el.type = isPw ? 'text' : 'password'; icon.className = isPw ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye';" class="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 hover:text-indigo-500">
+                                    <i id="loginPasswordIcon" class="fa-solid fa-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <p id="loginError" class="hidden text-xs font-semibold text-red-600 bg-red-50 border border-red-100 rounded-xl px-3 py-2"></p>
+                        <button id="loginSubmitBtn" type="submit" class="disabled:opacity-60 w-full py-4 mt-4 bg-gradient-brand text-white font-bold rounded-2xl shadow-glow hover:opacity-95 active:scale-[0.98] transition-all flex items-center justify-center gap-2">
+                            Login <i class="fa-solid fa-arrow-right-to-bracket text-sm"></i>
+                        </button>
+                    </form>
+                    <button type="button" onclick="openSyncModal()" class="w-full mt-4 text-xs font-bold text-indigo-600"><i class="fa-solid fa-cloud"></i>&nbsp; Hubungkan ke server data</button>
+                </div>
+
+                <div class="text-center py-4">
+                    <p class="text-xs text-slate-400 flex items-center justify-center gap-1.5">
+                        <i class="fa-solid fa-shield-halved text-slate-300"></i> Hotel Laundry System v2.5 • Housekeeping Dept
+                    </p>
+                </div>
+                </div>
+            </div>
+        `;
+    }
+
+    function renderHomeScreen() {
+        const orders = getOrders();
+        const todayKey = dateKey(new Date());
+        const todays = orders.filter(o => dateKey(o.createdAt) === todayKey);
+        const activeOrders = orders.filter(o => o.status !== 'Delivered');
+
+        const STEPS = ['Received', 'Processing', 'Ready'];
+        const STATUS = {
+            Received:   { grad: 'linear-gradient(140deg,#D97706 0%,#EA580C 100%)', color: '#EA580C' },
+            Processing: { grad: 'linear-gradient(140deg,#3B82F6 0%,#6366F1 100%)', color: '#6366F1' },
+            Ready:      { grad: 'linear-gradient(140deg,#8B5CF6 0%,#C026D3 100%)', color: '#A855F7' }
+        };
+        const countBy = s => activeOrders.filter(o => o.status === s).length;
+
+        const hour = new Date().getHours();
+        const greeting = hour < 11 ? 'Selamat Pagi' : hour < 15 ? 'Selamat Siang' : hour < 18 ? 'Selamat Sore' : 'Selamat Malam';
+        const dateLabel = new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long' });
+
+        const todayKg = todays.reduce((s, o) => s + (parseFloat(o.weightKg) || 0), 0);
+        const todayRp = todays.reduce((s, o) => s + calculateOrderTotals(o.weightKg, o.service).totalPrice, 0);
+        const expressCount = todays.filter(o => o.service === 'express').length;
+        const regularCount = todays.filter(o => o.service === 'regular').length;
+        const doneCount = todays.filter(o => o.status === 'Delivered').length;
+
+        const queue = [...activeOrders]
+            .sort((a, b) => (b.service === 'express') - (a.service === 'express') || new Date(a.createdAt) - new Date(b.createdAt))
+            .slice(0, 3);
+
+        const activeByRoom = {};
+        activeOrders.forEach(o => { activeByRoom[o.room] = o; });
+        const floors = [['1', 'STANDARD'], ['2', 'SUPERIOR'], ['3', 'FAMILY']];
+        const occupied = ROOM_LIST.filter(r => activeByRoom[r]).length;
+
+        const row = (o, i) => {
+            const st = STATUS[o.status] || STATUS.Processing;
+            const step = Math.max(0, STEPS.indexOf(o.status));
+            const { totalPrice } = calculateOrderTotals(o.weightKg, o.service);
+            return `
+                <div onclick="navigateTo('order-detail', '${o.id}')" style="--i:${i + 3}"
+                     class="home-in flex items-center gap-3 p-3 rounded-2xl bg-white border border-slate-100 shadow-soft cursor-pointer active:scale-[.985] transition-transform">
+                    <span class="shrink-0 w-11 h-11 rounded-2xl text-white font-extrabold text-sm flex items-center justify-center" style="background:${st.grad}">${o.room}</span>
+                    <div class="min-w-0 flex-1">
+                        <div class="flex items-center gap-2">
+                            <h5 class="text-sm font-extrabold text-slate-800 truncate">${escapeHtml(o.guestName || 'Tamu Kamar ' + o.room)}</h5>
+                            ${o.service === 'express' ? '<i class="fa-solid fa-bolt text-[11px] text-amber-500"></i>' : ''}
+                        </div>
+                        <p class="text-[11px] font-semibold mt-0.5" style="color:${st.color}">${o.status}
+                            <span class="text-slate-400 font-medium">${formatWeightDisplay(o.weightKg)} Kg, ${timeAgo(o.createdAt)}</span></p>
+                        <div class="flex gap-1 mt-1.5">
+                            ${STEPS.map((_, k) => `<span class="h-1 flex-1 rounded-full" style="background:${k <= step ? st.color : '#E2E8F0'}"></span>`).join('')}
+                        </div>
+                    </div>
+                    <p class="shrink-0 text-xs font-extrabold text-slate-800">${formatRp(totalPrice)}</p>
+                </div>`;
+        };
+
+        const totalActive = activeOrders.length;
+
+        return `
+            <div class="sm:px-6">
+            <div class="home-hero bg-gradient-brand pt-10 pb-24 px-6 text-white rounded-b-[32px] sm:rounded-3xl sm:mt-6 relative overflow-hidden shadow-lg">
+                <div class="home-drum" aria-hidden="true"></div>
+                <div class="relative flex items-center gap-3 mb-7">
+                    <button onclick="navigateTo('settings')" aria-label="Pengaturan" class="w-11 h-11 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center text-white active:scale-90 transition-transform">
+                        <i class="fa-solid fa-user-gear"></i>
+                    </button>
+                    <div>
+                        <p class="text-xs text-indigo-100 font-medium">${greeting}, ${escapeHtml(((currentStaff && currentStaff.name) || 'Staf').split(' ')[0])}</p>
+                        <h3 class="text-base font-bold">${dateLabel}</h3>
+                    </div>
+                </div>
+
+                <div class="relative">
+                    <p class="text-xs text-indigo-100 font-medium">Nilai order hari ini</p>
+                    <p class="text-[40px] leading-none font-extrabold tracking-tight mt-1.5">${formatRp(todayRp)}</p>
+                    <p class="text-xs text-indigo-100 mt-2">${todays.length} order, ${formatWeightDisplay(Math.round(todayKg * 10) / 10)} Kg dicuci</p>
+                    <button onclick="openCreateOrderModal()" class="mt-5 inline-flex items-center gap-2 px-5 py-3 bg-white text-indigo-600 font-bold text-xs rounded-2xl shadow-lg active:scale-95 transition-transform">
+                        <i class="fa-solid fa-plus"></i> Buat order baru
+                    </button>
+                </div>
+            </div>
+
+            <div class="relative z-10 px-5 sm:px-0 -mt-14 space-y-5">
+                <div class="grid gap-4 md:grid-cols-2">
+                    <div class="home-in bg-white rounded-3xl p-5 shadow-soft border border-slate-100" style="--i:0">
+                        <div class="flex items-baseline justify-between mb-4">
+                            <h3 class="text-sm font-extrabold text-slate-800">Sedang berjalan</h3>
+                            <button onclick="activeStatusFilter = 'All'; navigateTo('active-orders')" class="text-xs font-bold text-indigo-600">Lihat semua</button>
+                        </div>
+                        <div class="grid grid-cols-3 gap-2">
+                            ${STEPS.map(s => `
+                                <button type="button" onclick="activeStatusFilter = '${s}'; navigateTo('active-orders')" class="text-left rounded-xl py-1 active:scale-95 transition-transform">
+                                    <span class="block text-3xl font-extrabold leading-none" style="color:${STATUS[s].color}">${countBy(s)}</span>
+                                    <span class="block text-[11px] font-semibold text-slate-500 mt-1.5">${s}</span>
+                                </button>
+                            `).join('')}
+                        </div>
+                        <div class="flex gap-1 h-2 mt-4 rounded-full overflow-hidden" aria-hidden="true">
+                            ${totalActive === 0 ? '<span class="flex-1 bg-slate-100"></span>' : STEPS.filter(s => countBy(s) > 0).map(s => `<span style="flex:${countBy(s)};background:${STATUS[s].grad}"></span>`).join('')}
+                        </div>
+                    </div>
+
+                    <div class="home-in bg-white rounded-3xl p-5 shadow-soft border border-slate-100" style="--i:1">
+                        <h3 class="text-sm font-extrabold text-slate-800 mb-4">Hari ini</h3>
+                        <div class="grid grid-cols-4 divide-x divide-slate-100 text-center">
+                            <div><p class="text-2xl font-extrabold text-slate-800">${todays.length}</p><p class="text-[11px] font-semibold text-slate-400 mt-1">Order</p></div>
+                            <div><p class="text-2xl font-extrabold text-amber-500">${expressCount}</p><p class="text-[11px] font-semibold text-slate-400 mt-1">Express</p></div>
+                            <div><p class="text-2xl font-extrabold text-indigo-600">${regularCount}</p><p class="text-[11px] font-semibold text-slate-400 mt-1">Reguler</p></div>
+                            <div><p class="text-2xl font-extrabold text-emerald-600">${doneCount}</p><p class="text-[11px] font-semibold text-slate-400 mt-1">Selesai</p></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid gap-5 md:grid-cols-2 md:items-start">
+                    <div>
+                        <h3 class="text-sm font-extrabold text-slate-800 mb-3">Antrean berikutnya</h3>
+                        <div class="space-y-2.5">
+                            ${queue.length === 0 ? `
+                                <div class="bg-white rounded-2xl p-6 text-center shadow-soft border border-dashed border-slate-200">
+                                    <p class="text-slate-400 text-sm">Tidak ada pesanan aktif saat ini.</p>
+                                </div>
+                            ` : queue.map(row).join('')}
+                        </div>
+                    </div>
+
+                    <div onclick="navigateTo('rooms')" class="home-in bg-white rounded-3xl p-5 shadow-soft border border-slate-100 cursor-pointer active:scale-[.985] transition-transform" style="--i:6">
+                        <div class="flex items-baseline justify-between mb-4">
+                            <h3 class="text-sm font-extrabold text-slate-800">Peta kamar</h3>
+                            <span class="text-xs font-semibold text-slate-400">${occupied} dari ${ROOM_LIST.length} punya order</span>
+                        </div>
+                        <div class="space-y-3">
+                            ${floors.map(([f, name]) => `
+                                <div class="flex items-center gap-3">
+                                    <span class="w-[4.4rem] shrink-0 text-[10px] font-bold text-slate-500 tracking-wide">${name}</span>
+                                    <div class="grid grid-cols-6 gap-1.5 flex-1">
+                                        ${ROOM_LIST.filter(r => r.startsWith(f)).map(r => {
+                                            const o = activeByRoom[r];
+                                            return o
+                                                ? `<span class="rm-cell text-white" style="background:${(STATUS[o.status] || STATUS.Processing).grad}">${r}</span>`
+                                                : `<span class="rm-cell bg-slate-100 text-slate-400">${r}</span>`;
+                                        }).join('')}
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <p class="mt-4 text-xs font-bold text-indigo-600">Buka semua kamar <i class="fa-solid fa-arrow-right ml-1"></i></p>
+                    </div>
+                </div>
+            </div>
+            </div>
+        `;
+    }
+
+    function renderOrderCardSnippet(order, showTime = false) {
+        const { totalPrice } = calculateOrderTotals(order.weightKg, order.service);
+        const statusColors = {
+            'Received': 'bg-amber-50 text-amber-600 border-amber-200',
+            'Processing': 'bg-blue-50 text-blue-600 border-blue-200',
+            'Ready': 'bg-purple-50 text-purple-600 border-purple-200',
+            'Delivered': 'bg-emerald-50 text-emerald-600 border-emerald-200'
+        };
+
+        return `
+            <div onclick="navigateTo('order-detail', '${order.id}')" class="bg-white p-4 rounded-2xl shadow-soft border border-slate-100 hover:border-indigo-200 cursor-pointer transition-all active:scale-[0.99]">
+                <div class="flex justify-between items-start mb-2">
+                    <div class="flex items-center gap-2 min-w-0">
+                        <span class="shrink-0 w-9 h-9 rounded-xl bg-indigo-50 font-black text-indigo-600 text-xs flex items-center justify-center border border-indigo-100">
+                            ${order.room}
+                        </span>
+                        <div class="min-w-0">
+                            <h5 class="text-sm font-bold text-slate-800 truncate">${escapeHtml(order.guestName || 'Tamu Kamar ' + order.room)}</h5>
+                            <p class="text-[11px] text-slate-400 font-medium truncate">${order.id} • ${order.service.toUpperCase()}</p>
+                        </div>
+                    </div>
+                    <span class="shrink-0 ml-2 text-[10px] font-bold px-2.5 py-1 rounded-full border ${statusColors[order.status] || 'bg-slate-100 text-slate-600'}">
+                        ${order.status}
+                    </span>
+                </div>
+                <div class="flex justify-between items-center text-xs pt-2 border-t border-slate-50 mt-2 text-slate-500">
+                    <span><i class="fa-solid fa-weight-scale text-slate-400 mr-1"></i> ${formatWeightDisplay(order.weightKg)} Kg${showTime ? `<span class="text-slate-300 mx-1.5">•</span><i class="fa-regular fa-clock text-slate-400 mr-1"></i>${new Date(order.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}` : ''}</span>
+                    <span class="font-extrabold text-slate-800">${formatRp(totalPrice)}</span>
+                </div>
+            </div>
+        `;
+    }
+
+    function renderRoomsScreen() {
+        const orders = getOrders();
+
+        const STATUS = {
+            Received:   { grad: 'linear-gradient(140deg,#D97706 0%,#EA580C 100%)', shadow: '0 14px 26px -12px rgba(234,88,12,.65)',  dot: '#F59E0B' },
+            Processing: { grad: 'linear-gradient(140deg,#3B82F6 0%,#6366F1 100%)', shadow: '0 14px 26px -12px rgba(79,70,229,.6)',   dot: '#6366F1' },
+            Ready:      { grad: 'linear-gradient(140deg,#8B5CF6 0%,#C026D3 100%)', shadow: '0 14px 26px -12px rgba(147,51,234,.6)',  dot: '#A855F7' }
+        };
+        const STEPS = ['Received', 'Processing', 'Ready'];
+
+        const activeOrders = orders.filter(o => o.status !== 'Delivered' && ROOM_LIST.includes(o.room));
+        const countBy = s => activeOrders.filter(o => o.status === s).length;
+        const emptyCount = ROOM_LIST.length - new Set(activeOrders.map(o => o.room)).size;
+
+        const legend = [
+            ...STEPS.map(s => ({ label: s, n: countBy(s), color: STATUS[s].dot })),
+            { label: 'Kosong', n: emptyCount, color: '#CBD5E1' }
+        ];
+
+        let idx = 0;
+
+        return `
+            <div class="rooms-wrap p-6 lg:p-8">
+                <div class="mb-5">
+                    <h2 class="text-[28px] leading-tight font-extrabold text-slate-800">Pilih Kamar</h2>
+                    <p class="text-slate-500 text-xs mt-1.5">Pilih kamar untuk membuat order laundry baru atau cek order aktif.</p>
+                </div>
+
+                <div class="flex gap-2 overflow-x-auto scrollbar-none pb-1 mb-6 -mx-1 px-1">
+                    ${legend.map(l => `
+                        <span class="shrink-0 inline-flex items-center gap-2 pl-2.5 pr-3 py-1.5 rounded-full bg-white/80 border border-slate-100 text-[11px] font-semibold text-slate-500">
+                            <span class="w-2 h-2 rounded-full" style="background:${l.color}"></span>
+                            ${l.label}
+                            <b class="text-slate-800">${l.n}</b>
+                        </span>
+                    `).join('')}
+                </div>
+
+                <div class="space-y-8">
+                    ${['1', '2', '3'].map(floor => {
+                        const floorName = { '1': 'STANDARD', '2': 'SUPERIOR', '3': 'FAMILY' }[floor];
+                        const floorRooms = ROOM_LIST.filter(r => r.startsWith(floor));
+                        const floorActive = floorRooms.filter(r => activeOrders.some(o => o.room === r)).length;
+                        return `
+                            <section>
+                                <div class="flex items-center gap-3 mb-3.5">
+                                    <span class="w-9 h-9 rounded-xl bg-white border border-indigo-100 text-indigo-600 font-extrabold text-sm flex items-center justify-center shadow-soft">${floor}</span>
+                                    <div class="min-w-0 flex-1">
+                                        <h3 class="text-sm font-extrabold text-slate-800 leading-tight tracking-wide">${floorName}</h3>
+                                        <p class="text-[11px] text-slate-400 font-medium">Lantai ${floor}, ${floorActive} dari ${floorRooms.length} kamar punya order aktif</p>
+                                    </div>
+                                </div>
+                                <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                                    ${floorRooms.map(roomNum => {
+                                        const o = orders.find(x => x.room === roomNum && x.status !== 'Delivered');
+                                        const style = `--i:${idx++}`;
+
+                                        if (!o) {
+                                            return `
+                                                <button type="button" onclick="openCreateOrderModal('${roomNum}')" style="${style}"
+                                                        aria-label="Kamar ${roomNum} kosong, buat order baru"
+                                                        class="room-card room-empty">
+                                                    <span class="text-2xl font-bold tracking-tight">${roomNum}</span>
+                                                    <span class="flex items-end justify-between w-full">
+                                                        <span class="text-xs font-medium text-slate-400 leading-tight">Kosong<br><span class="text-[11px] text-slate-400/80">Order baru</span></span>
+                                                        <span class="plus w-8 h-8 rounded-xl bg-indigo-50 text-indigo-500 flex items-center justify-center"><i class="fa-solid fa-plus text-xs"></i></span>
+                                                    </span>
+                                                </button>`;
+                                        }
+
+                                        const st = STATUS[o.status] || STATUS.Processing;
+                                        const step = Math.max(0, STEPS.indexOf(o.status));
+                                        const isExpress = o.service === 'express';
+                                        return `
+                                            <button type="button" onclick="navigateTo('order-detail', '${o.id}')" style="${style};background:${st.grad};box-shadow:${st.shadow}"
+                                                    aria-label="Kamar ${roomNum}, ${o.service} ${o.status}, ${formatWeightDisplay(o.weightKg)} kilogram. Buka detail"
+                                                    class="room-card room-active">
+                                                <span class="flex items-start justify-between w-full">
+                                                    <span class="text-2xl font-extrabold tracking-tight">${roomNum}</span>
+                                                    <span class="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center text-xs">
+                                                        <i class="fa-solid ${isExpress ? 'fa-bolt' : 'fa-shirt'}"></i>
+                                                    </span>
+                                                </span>
+                                                <span class="block w-full">
+                                                    <span class="block text-lg font-extrabold leading-none">${formatWeightDisplay(o.weightKg)} <span class="text-[11px] font-semibold opacity-80">Kg</span></span>
+                                                    <span class="flex items-center gap-1.5 mt-2 text-[11px] font-semibold">
+                                                        <span class="room-dot ${o.status === 'Processing' ? 'pulse' : ''}"></span>
+                                                        ${o.status}
+                                                        <span class="ml-auto px-1.5 py-0.5 rounded-md bg-black/15 text-[10px] font-bold">${isExpress ? 'Express' : 'Regular'}</span>
+                                                    </span>
+                                                    <span class="flex gap-1 mt-2.5" aria-hidden="true">
+                                                        ${STEPS.map((_, i) => `<span class="h-1 flex-1 rounded-full ${i <= step ? 'bg-white' : 'bg-white/30'}"></span>`).join('')}
+                                                    </span>
+                                                </span>
+                                            </button>`;
+                                    }).join('')}
+                                </div>
+                            </section>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    // ==========================================
+    // CREATE ORDER MODAL (WEIGHT PER KILO)
+    // ==========================================
+    function openCreateOrderModal(selectedRoom = '101') {
+        roomDropdownOpen = false;
+        editingOrderId = null;
+        newOrderState = {
+            room: selectedRoom,
+            guestName: '',
+            guestPhone: '',
+            service: 'regular',
+            weightKg: 1.5,
+            totalPakaian: '',
+            guestRequest: '',
+            photoBefore: null,
+            photoAfter: null,
+            orderDate: dateKey(new Date())
+        };
+        renderCreateOrderModal();
+    }
+
+    function openEditOrderModal(orderId) {
+        const order = getOrders().find(o => o.id === orderId);
+        if (!order) {
+            showToast('Order tidak ditemukan.', 'warn');
+            return;
+        }
+        roomDropdownOpen = false;
+        editingOrderId = order.id;
+        // Nama bawaan ("Tamu Kamar 102") dikosongkan supaya tidak ikut terkunci bila kamar diganti
+        const isDefaultName = order.guestName === 'Tamu Kamar ' + order.room;
+        newOrderState = {
+            room: order.room,
+            guestName: isDefaultName ? '' : (order.guestName || ''),
+            guestPhone: order.guestPhone || '',
+            service: order.service,
+            weightKg: order.weightKg,
+            totalPakaian: order.totalPakaian || '',
+            guestRequest: order.guestRequest || '',
+            photoBefore: order.photoBefore || null,
+            photoAfter: order.photoAfter || null,
+            orderDate: dateKey(order.createdAt)
+        };
+        renderCreateOrderModal();
+    }
+
+    function renderCreateOrderModal() {
+        const modal = document.getElementById('modal-container');
+        modal.classList.remove('hidden');
+
+        const { totalPrice, rate } = calculateOrderTotals(newOrderState.weightKg, newOrderState.service);
+
+        modal.innerHTML = `
+            <div class="bg-white w-full sm:max-w-lg h-[92vh] h-[92dvh] sm:h-auto sm:max-h-[90vh] sm:max-h-[90dvh] rounded-t-3xl sm:rounded-3xl flex flex-col overflow-hidden animate-slide-up shadow-2xl">
+                <!-- Header -->
+                <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                    <div>
+                        <h3 class="text-base font-extrabold text-slate-800">${editingOrderId ? 'Edit Order Laundry' : 'Order Laundry Baru'}</h3>
+                        <p class="text-xs text-slate-500">${editingOrderId ? 'Ubah data order ' + editingOrderId : 'Hitung tarif laundry berdasarkan berat kiloan'}</p>
+                    </div>
+                    <button onclick="closeModal()" class="w-8 h-8 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-xs font-bold">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+
+                <!-- Form Content -->
+                <div class="flex-1 min-h-0 overflow-y-auto p-6 space-y-6" onclick="if (roomDropdownOpen) { roomDropdownOpen = false; renderCreateOrderModal(); }">
+                    
+                    <!-- Room & Guest Info -->
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="relative">
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Kamar</label>
+                            <button type="button" onclick="event.stopPropagation(); roomDropdownOpen = !roomDropdownOpen; renderCreateOrderModal();"
+                                    class="w-full py-3 px-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 text-sm flex items-center justify-between hover:border-indigo-300 transition-all">
+                                <span>Room ${newOrderState.room}</span>
+                                <i class="fa-solid fa-chevron-down text-[10px] text-slate-400 transition-transform ${roomDropdownOpen ? 'rotate-180 text-indigo-500' : ''}"></i>
+                            </button>
+                            ${roomDropdownOpen ? `
+                                <div onclick="event.stopPropagation();" class="absolute z-20 mt-1.5 w-full max-h-48 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-soft py-1.5 scrollbar-none">
+                                    ${ROOM_LIST.map(r => `
+                                        <button type="button" onclick="event.stopPropagation(); newOrderState.room = '${r}'; roomDropdownOpen = false; renderCreateOrderModal();"
+                                                class="w-full text-left px-3 py-2 text-sm font-semibold flex items-center justify-between transition-colors ${newOrderState.room === r ? 'text-indigo-600 bg-indigo-50' : 'text-slate-700 hover:bg-slate-50'}">
+                                            Room ${r}
+                                            ${newOrderState.room === r ? '<i class="fa-solid fa-check text-xs"></i>' : ''}
+                                        </button>
+                                    `).join('')}
+                                </div>
+                            ` : ''}
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Nama Tamu</label>
+                            <input type="text" placeholder="John Doe" value="${escapeHtml(newOrderState.guestName)}" oninput="newOrderState.guestName = this.value" class="w-full py-3 px-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 font-medium text-sm">
+                        </div>
+                    </div>
+
+                    <!-- No. WhatsApp Tamu -->
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">No. WhatsApp Tamu (opsional)</label>
+                        <input type="tel" placeholder="08123456789" value="${escapeHtml(newOrderState.guestPhone || '')}" oninput="newOrderState.guestPhone = this.value" class="w-full py-3 px-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 font-medium text-sm">
+                    </div>
+
+                    <!-- Tanggal Laundry (custom) -->
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Tanggal Laundry</label>
+                        <input type="date" value="${newOrderState.orderDate}" onchange="newOrderState.orderDate = this.value" class="w-full py-3 px-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 font-medium text-sm">
+                    </div>
+
+                    <!-- Jumlah Pakaian -->
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Total Pakaian (pcs)</label>
+                        <input type="number" min="0" placeholder="26" value="${newOrderState.totalPakaian || ''}" oninput="newOrderState.totalPakaian = this.value" class="w-full py-3 px-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 font-medium text-sm">
+                    </div>
+
+                    <!-- Service Selection Card -->
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase mb-2">Pilih Layanan Service</label>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div onclick="newOrderState.service = 'regular'; renderCreateOrderModal();" 
+                                 class="p-4 rounded-2xl border-2 cursor-pointer transition-all ${newOrderState.service === 'regular' ? 'border-indigo-600 bg-indigo-50/50' : 'border-slate-100 bg-slate-50'}">
+                                <div class="flex justify-between items-center mb-1">
+                                    <span class="font-bold text-sm text-slate-800">REGULER</span>
+                                    <i class="fa-solid fa-clock text-indigo-500 text-xs"></i>
+                                </div>
+                                <p class="text-xs font-extrabold text-indigo-600">Rp 30.000 / Kg</p>
+                                <p class="text-[11px] text-slate-500 mt-1">Standard laundry (24 jam)</p>
+                            </div>
+
+                            <div onclick="newOrderState.service = 'express'; renderCreateOrderModal();" 
+                                 class="p-4 rounded-2xl border-2 cursor-pointer transition-all ${newOrderState.service === 'express' ? 'border-purple-600 bg-purple-50/50' : 'border-slate-100 bg-slate-50'}">
+                                <div class="flex justify-between items-center mb-1">
+                                    <span class="font-bold text-sm text-purple-700">EXPRESS</span>
+                                    <i class="fa-solid fa-bolt text-purple-600 text-xs"></i>
+                                </div>
+                                <p class="text-xs font-extrabold text-purple-600">Rp 60.000 / Kg</p>
+                                <p class="text-[11px] text-slate-500 mt-1">Priority laundry (6 jam)</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Weight Input (Kiloan Input) -->
+                    <div>
+                        <div class="flex justify-between items-center mb-2">
+                            <label class="block text-xs font-bold text-slate-600 uppercase">Berat Laundry (Kg)</label>
+                            <span class="text-xs font-semibold text-indigo-600">${formatRp(rate)} / Kg</span>
+                        </div>
+                        <div class="relative">
+                            <input type="text" inputmode="decimal" id="weightInput" placeholder="1,5" value="${formatWeightDisplay(newOrderState.weightKg)}" 
+                                   oninput="updateWeightFromInput(this.value)" 
+                                   class="w-full py-3.5 px-4 bg-slate-50 border border-slate-200 rounded-2xl text-slate-800 font-extrabold text-lg focus:bg-white focus:outline-none focus:border-indigo-500 shadow-sm">
+                            <span class="absolute right-4 top-3.5 font-bold text-slate-400 text-sm">Kg</span>
+                        </div>
+                        <!-- Quick Weight Presets -->
+                        <div class="flex flex-wrap gap-2 mt-3">
+                            <button type="button" onclick="setWeight(1)" class="px-3.5 py-1.5 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 text-slate-700 font-bold text-xs rounded-xl border border-slate-200 transition-all">1 Kg</button>
+                            <button type="button" onclick="setWeight(1.5)" class="px-3.5 py-1.5 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 text-slate-700 font-bold text-xs rounded-xl border border-slate-200 transition-all">1,5 Kg</button>
+                            <button type="button" onclick="setWeight(2)" class="px-3.5 py-1.5 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 text-slate-700 font-bold text-xs rounded-xl border border-slate-200 transition-all">2 Kg</button>
+                            <button type="button" onclick="setWeight(2.5)" class="px-3.5 py-1.5 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 text-slate-700 font-bold text-xs rounded-xl border border-slate-200 transition-all">2,5 Kg</button>
+                            <button type="button" onclick="setWeight(3)" class="px-3.5 py-1.5 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 text-slate-700 font-bold text-xs rounded-xl border border-slate-200 transition-all">3 Kg</button>
+                        </div>
+                    </div>
+
+                    <!-- Guest Request -->
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Guest Request (Catatan Khusus)</label>
+                        <textarea oninput="newOrderState.guestRequest = this.value" rows="2" placeholder="Contoh: Tolong setrika rapi, jangan pakai pewangi menyengat..." class="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs text-slate-800 focus:bg-white focus:outline-none focus:border-indigo-500">${escapeHtml(newOrderState.guestRequest)}</textarea>
+                    </div>
+
+                    <!-- Photo Evidence -->
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase mb-2">Foto Bukti Laundry</label>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="border-2 border-dashed border-slate-200 rounded-2xl p-3 text-center bg-slate-50 relative">
+                                <p class="text-[10px] font-bold text-slate-500 mb-2 uppercase">SEBELUM (BEFORE)</p>
+                                ${newOrderState.photoBefore ? `
+                                    <div class="relative group">
+                                        <img src="${newOrderState.photoBefore}" class="w-full h-24 object-cover rounded-xl shadow-sm">
+                                        <button onclick="removePhoto('photoBefore')" class="absolute top-1 right-1 bg-red-500 text-white w-6 h-6 rounded-full shadow-md flex items-center justify-center">${svgIcon('x', 'w-3.5 h-3.5')}</button>
+                                    </div>
+                                ` : `
+                                    <label class="cursor-pointer py-4 flex flex-col items-center justify-center">
+                                        <i class="fa-solid fa-camera text-slate-400 text-xl mb-1"></i>
+                                        <span class="text-[11px] font-bold text-indigo-600">Unggah Foto</span>
+                                        <input type="file" accept="image/*" class="hidden" onchange="handlePhotoUpload(event, 'photoBefore')">
+                                    </label>
+                                `}
+                            </div>
+
+                            <div class="border-2 border-dashed border-slate-200 rounded-2xl p-3 text-center bg-slate-50 relative">
+                                <p class="text-[10px] font-bold text-slate-500 mb-2 uppercase">SESUDAH (AFTER)</p>
+                                ${newOrderState.photoAfter ? `
+                                    <div class="relative group">
+                                        <img src="${newOrderState.photoAfter}" class="w-full h-24 object-cover rounded-xl shadow-sm">
+                                        <button onclick="removePhoto('photoAfter')" class="absolute top-1 right-1 bg-red-500 text-white w-6 h-6 rounded-full shadow-md flex items-center justify-center">${svgIcon('x', 'w-3.5 h-3.5')}</button>
+                                    </div>
+                                ` : `
+                                    <label class="cursor-pointer py-4 flex flex-col items-center justify-center">
+                                        <i class="fa-solid fa-camera text-slate-400 text-xl mb-1"></i>
+                                        <span class="text-[11px] font-bold text-indigo-600">Unggah Foto</span>
+                                        <input type="file" accept="image/*" class="hidden" onchange="handlePhotoUpload(event, 'photoAfter')">
+                                    </label>
+                                `}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Ringkasan Card -->
+                    <div class="bg-gradient-to-br from-indigo-50 to-purple-50 p-4 rounded-2xl border border-indigo-100 space-y-2">
+                        <div class="flex justify-between text-xs text-slate-600">
+                            <span>Kamar / Tamu:</span>
+                            <span class="font-bold text-slate-800">${newOrderState.room} (${escapeHtml(newOrderState.guestName || 'Tanpa Nama')})</span>
+                        </div>
+                        <div class="flex justify-between text-xs text-slate-600">
+                            <span>Layanan:</span>
+                            <span class="font-bold text-indigo-600 uppercase">${newOrderState.service} (${formatRp(rate)}/Kg)</span>
+                        </div>
+                        <div class="flex justify-between text-xs text-slate-600">
+                            <span>Berat Laundry:</span>
+                            <span id="summaryWeight" class="font-bold text-slate-800">${formatWeightDisplay(newOrderState.weightKg)} Kg</span>
+                        </div>
+                        <div class="flex justify-between items-center text-sm pt-2 border-t border-indigo-200/60 font-extrabold text-slate-900">
+                            <span>Total Harga:</span>
+                            <span id="summaryTotal" class="text-xl text-indigo-600">${formatRp(totalPrice)}</span>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Footer Save Button -->
+                <div class="p-4 bg-white border-t border-slate-100" style="padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));">
+                    <button onclick="saveNewLaundryOrder()" class="w-full py-3.5 bg-gradient-brand text-white font-bold text-sm rounded-2xl shadow-glow hover:opacity-95 transition-all">
+                        ${editingOrderId ? 'Simpan Perubahan' : 'Simpan Order Laundry'}
+                    </button>
+                </div>
+                </div>
+                </div>
+            </div>
+        `;
+    }
+
+    function updateWeightFromInput(val) {
+        const cleaned = String(val).replace(',', '.');
+        const parsed = parseFloat(cleaned);
+        newOrderState.weightKg = isNaN(parsed) ? 0 : parsed;
+        
+        const rate = PRICING_RATES[newOrderState.service] || PRICING_RATES.regular;
+        const total = newOrderState.weightKg * rate;
+        
+        const summaryWeight = document.getElementById('summaryWeight');
+        const summaryTotal = document.getElementById('summaryTotal');
+        if (summaryWeight) summaryWeight.innerText = formatWeightDisplay(newOrderState.weightKg) + ' Kg';
+        if (summaryTotal) summaryTotal.innerText = formatRp(total);
+    }
+
+    function setWeight(kg) {
+        newOrderState.weightKg = kg;
+        renderCreateOrderModal();
+    }
+
+    // Foto diperkecil (maks. 1000px, JPEG) agar hemat penyimpanan dan cepat disinkronkan
+    function compressImage(file, maxSide = 1000, quality = 0.72) {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            const objUrl = URL.createObjectURL(file);
+            img.onload = () => {
+                const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+                const c = document.createElement('canvas');
+                c.width = Math.round(img.width * scale);
+                c.height = Math.round(img.height * scale);
+                c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+                URL.revokeObjectURL(objUrl);
+                resolve(c.toDataURL('image/jpeg', quality));
+            };
+            img.onerror = () => { URL.revokeObjectURL(objUrl); reject(new Error('Gambar tidak terbaca')); };
+            img.src = objUrl;
+        });
+    }
+
+    function handlePhotoUpload(event, key) {
+        const file = event.target.files[0];
+        if (!file) return;
+        compressImage(file)
+            .then(url => { newOrderState[key] = url; renderCreateOrderModal(); })
+            .catch(() => showToast('Foto tidak bisa dibaca. Coba foto lain.', 'warn'));
+    }
+
+    function removePhoto(key) {
+        newOrderState[key] = null;
+        renderCreateOrderModal();
+    }
+
+    function buildOrderDateTime(dateStr) {
+        const now = new Date();
+        if (!dateStr) return now.toISOString();
+        const [y, m, d] = dateStr.split('-').map(Number);
+        const result = new Date(y, m - 1, d, now.getHours(), now.getMinutes(), now.getSeconds());
+        return result.toISOString();
+    }
+
+    function closeModal() {
+        document.getElementById('modal-container').classList.add('hidden');
+        editingOrderId = null;
+    }
+
+    function saveNewLaundryOrder() {
+        if (!newOrderState.weightKg || newOrderState.weightKg <= 0) {
+            showToast('Masukkan berat laundry yang valid dalam Kg!', 'warn');
+            return;
+        }
+
+        if (editingOrderId) {
+            saveEditedLaundryOrder();
+            return;
+        }
+
+        const orders = getOrders();
+        // ID acak 4 karakter agar tidak bentrok antar HP
+        const usedIds = new Set(orders.map(o => o.id));
+        let newId;
+        do { newId = 'LD-' + newOrderState.room + Math.random().toString(36).slice(2, 6).toUpperCase(); } while (usedIds.has(newId));
+        
+        const newOrderObj = {
+            id: newId,
+            room: newOrderState.room,
+            guestName: newOrderState.guestName || 'Tamu Kamar ' + newOrderState.room,
+            guestPhone: newOrderState.guestPhone || '',
+            totalPakaian: newOrderState.totalPakaian || '',
+            service: newOrderState.service,
+            weightKg: newOrderState.weightKg,
+            guestRequest: newOrderState.guestRequest,
+            photoBefore: newOrderState.photoBefore,
+            photoAfter: newOrderState.photoAfter,
+            status: 'Received',
+            paid: false,
+            createdBy: currentStaff ? currentStaff.id : '',
+            createdAt: buildOrderDateTime(newOrderState.orderDate)
+        };
+
+        orders.unshift(newOrderObj);
+        saveOrders(orders);
+        closeModal();
+        navigateTo('order-detail', newId);
+    }
+
+    // Simpan perubahan order yang sudah ada. ID, status, dan status lunas tidak berubah.
+    function saveEditedLaundryOrder() {
+        const orders = getOrders();
+        const idx = orders.findIndex(o => o.id === editingOrderId);
+        if (idx === -1) {
+            closeModal();
+            showToast('Order tidak ditemukan, mungkin sudah dihapus.', 'warn');
+            navigateTo('home');
+            return;
+        }
+
+        const old = orders[idx];
+        let createdAt = old.createdAt;
+        // Tanggal diubah -> pakai tanggal baru, jam aslinya dipertahankan
+        if (newOrderState.orderDate && newOrderState.orderDate !== dateKey(old.createdAt)) {
+            const [y, m, d] = newOrderState.orderDate.split('-').map(Number);
+            const t = new Date(old.createdAt);
+            createdAt = new Date(y, m - 1, d, t.getHours(), t.getMinutes(), t.getSeconds()).toISOString();
+        }
+
+        orders[idx] = {
+            ...old,
+            room: newOrderState.room,
+            guestName: newOrderState.guestName || 'Tamu Kamar ' + newOrderState.room,
+            guestPhone: newOrderState.guestPhone || '',
+            totalPakaian: newOrderState.totalPakaian || '',
+            service: newOrderState.service,
+            weightKg: newOrderState.weightKg,
+            guestRequest: newOrderState.guestRequest,
+            photoBefore: newOrderState.photoBefore,
+            photoAfter: newOrderState.photoAfter,
+            createdAt: createdAt,
+            updatedAt: new Date().toISOString(),
+            updatedBy: currentStaff ? currentStaff.id : ''
+        };
+
+        saveOrders(orders);
+        const savedId = old.id;
+        closeModal();
+        showToast('Perubahan order berhasil disimpan.', 'success');
+        navigateTo('order-detail', savedId);
+    }
+
+    // ==========================================
+    // ORDER DETAIL SCREEN
+    // ==========================================
+    function renderOrderDetailScreen(orderId) {
+        const orders = getOrders();
+        const order = orders.find(o => o.id === orderId) || orders[0];
+        if (!order) return '<div class="p-6">Order tidak ditemukan.</div>';
+
+        const { totalPrice, rate } = calculateOrderTotals(order.weightKg, order.service);
+
+        const steps = ['Received', 'Processing', 'Ready', 'Delivered'];
+        const currentStepIdx = steps.indexOf(order.status);
+
+        return `
+            <div class="p-6 lg:p-8 space-y-6">
+                <!-- Header -->
+                <div class="flex items-center justify-between">
+                    <button onclick="navigateTo('home')" class="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-600 shadow-sm">
+                        <i class="fa-solid fa-chevron-left"></i>
+                    </button>
+                    <h3 class="text-base font-extrabold text-slate-800">Detail Pesanan</h3>
+                    <div class="flex items-center gap-2">
+                        <button onclick="openEditOrderModal('${order.id}')" aria-label="Edit order" class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-sm shadow-sm">
+                            <i class="fa-solid fa-pen-to-square"></i>
+                        </button>
+                        <button onclick="deleteOrder('${order.id}')" aria-label="Hapus order" class="w-10 h-10 rounded-xl bg-red-50 text-red-500 flex items-center justify-center text-sm shadow-sm">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+                <div class="space-y-6">
+                <!-- Info Card -->
+                <div class="bg-gradient-brand rounded-3xl p-5 text-white shadow-glow space-y-3">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <span class="text-xs bg-white/20 px-2.5 py-1 rounded-full font-bold uppercase tracking-wide">Kamar ${order.room}</span>
+                            <h2 class="text-xl font-extrabold mt-2">${escapeHtml(order.guestName)}</h2>
+                        </div>
+                        <span class="text-xs font-bold bg-white text-indigo-700 px-3 py-1 rounded-full uppercase">${order.service}</span>
+                    </div>
+                    <div class="flex justify-between items-center pt-3 border-t border-white/20 text-xs text-indigo-100">
+                        <span>ID Order: <strong>${order.id}</strong></span>
+                        <span>${new Date(order.createdAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}, ${new Date(order.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</span>
+                    </div>
+                    ${order.totalPakaian ? `
+                        <div class="flex items-center gap-1.5 text-xs text-indigo-100 pt-1">
+                            <i class="fa-solid fa-shirt"></i> Total Pakaian: <strong class="text-white">${order.totalPakaian} pcs</strong>
+                        </div>
+                    ` : ''}
+                </div>
+
+                <!-- Visual Stepper -->
+                <div class="bg-white p-5 rounded-3xl shadow-soft border border-slate-100">
+                    <h4 class="text-xs font-bold uppercase text-slate-400 mb-4 tracking-wider">Status Pesanan</h4>
+                    <div class="relative flex items-center justify-between">
+                        <div class="absolute left-8 right-8 top-4 h-1 bg-slate-100 -z-0"></div>
+                        <div class="absolute left-8 top-4 h-1 bg-indigo-600 -z-0 transition-all duration-500" style="width: calc((100% - 4rem) * ${currentStepIdx / (steps.length - 1)})"></div>
+
+                        ${steps.map((step, idx) => {
+                            const isDone = idx <= currentStepIdx;
+                            const isCurrent = idx === currentStepIdx;
+                            return `
+                                <div class="flex flex-col items-center z-10 w-16">
+                                    <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${isDone ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-100 text-slate-400'} ${isCurrent ? 'ring-4 ring-indigo-100 scale-110' : ''}">
+                                        ${idx + 1}
+                                    </div>
+                                    <span class="text-[10px] font-bold mt-2 ${isDone ? 'text-indigo-600' : 'text-slate-400'}">${step}</span>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+
+                    <div class="mt-6 pt-4 border-t border-slate-100 flex gap-2">
+                        ${currentStepIdx < steps.length - 1 ? `
+                            <button onclick="advanceOrderStatus('${order.id}', '${steps[currentStepIdx + 1]}')" class="w-full py-3 bg-gradient-brand text-white font-bold text-xs rounded-xl shadow-glow hover:opacity-95">
+                                Perbarui Status Ke: ${steps[currentStepIdx + 1]}
+                            </button>
+                        ` : `
+                            <div class="w-full py-2.5 bg-emerald-50 text-emerald-600 font-bold text-xs rounded-xl text-center border border-emerald-200 flex items-center justify-center gap-1.5">
+                                ${svgIcon('checkCircle', 'w-4 h-4')} Pesanan Telah Selesai & Diantar
+                            </div>
+                        `}
+                    </div>
+
+                    <button onclick="sendOrderToWhatsApp('${order.id}', true)" class="mt-2 w-full py-3 bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-md hover:bg-emerald-600 flex items-center justify-center gap-2">
+                        <i class="fa-brands fa-whatsapp text-sm"></i> ${order.photoBefore ? 'Kirim ke WhatsApp (+ Foto Before)' : 'Kirim ke WhatsApp'}
+                    </button>
+                    ${order.photoBefore ? `
+                        <button onclick="sendOrderToWhatsApp('${order.id}', false)" class="mt-2 w-full py-3 bg-white text-emerald-600 border border-emerald-200 font-bold text-xs rounded-xl shadow-sm hover:bg-emerald-50 flex items-center justify-center gap-2">
+                            <i class="fa-brands fa-whatsapp text-sm"></i> Kirim ke WhatsApp (Tanpa Foto)
+                        </button>
+                    ` : ''}
+
+                    <button onclick="togglePaidStatus('${order.id}')" class="mt-2 w-full py-3 font-bold text-xs rounded-xl shadow-sm flex items-center justify-center gap-2 border ${order.paid ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-red-50 text-red-500 border-red-200'}">
+                        <i class="fa-solid ${order.paid ? 'fa-circle-check' : 'fa-circle-xmark'} text-sm"></i>
+                        ${order.paid ? 'Sudah Bayar — Tandai Belum Bayar' : 'Belum Bayar — Tandai Sudah Bayar'}
+                    </button>
+                </div>
+
+                </div>
+                <div class="space-y-6">
+                <!-- Price Breakdown (Per Kilo) -->
+                <div class="bg-white p-5 rounded-3xl shadow-soft border border-slate-100 space-y-3">
+                    <div class="flex justify-between items-center border-b border-slate-100 pb-2">
+                        <h4 class="text-xs font-bold uppercase text-slate-400">Rincian Perhitungan Tarif</h4>
+                        <span class="text-xs font-extrabold text-indigo-600">${formatRp(totalPrice)}</span>
+                    </div>
+
+                    <div class="space-y-2 text-xs text-slate-700">
+                        <div class="flex justify-between items-center py-1">
+                            <span>Berat Laundry</span>
+                            <span class="font-bold text-slate-900">${formatWeightDisplay(order.weightKg)} Kg</span>
+                        </div>
+                        <div class="flex justify-between items-center py-1">
+                            <span>Tarif Layanan (${order.service.toUpperCase()})</span>
+                            <span class="font-bold text-slate-900">${formatRp(rate)} / Kg</span>
+                        </div>
+                        <div class="flex justify-between items-center gap-3 py-1 pt-2 border-t border-slate-100 font-bold text-slate-900">
+                            <span>Total Biaya</span>
+                            <span class="text-indigo-600 font-extrabold text-right">${formatWeightDisplay(order.weightKg)} Kg × ${formatRp(rate)} = ${formatRp(totalPrice)}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Guest Request -->
+                ${order.guestRequest ? `
+                    <div class="bg-amber-50/70 border border-amber-200 p-4 rounded-2xl text-xs text-amber-900">
+                        <span class="font-bold flex items-center gap-1.5 mb-1">${svgIcon('pin', 'w-3.5 h-3.5')} Guest Request:</span>
+                        "${escapeHtml(order.guestRequest)}"
+                    </div>
+                ` : ''}
+
+                <!-- Photo Evidence -->
+                <div class="bg-white p-5 rounded-3xl shadow-soft border border-slate-100">
+                    <h4 class="text-xs font-bold uppercase text-slate-400 mb-3">Foto Bukti Laundry</h4>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="bg-slate-50 p-2 rounded-2xl text-center border border-slate-100">
+                            <p class="text-[10px] font-bold text-slate-400 mb-1">BEFORE</p>
+                            ${order.photoBefore ? `
+                                <img src="${order.photoBefore}" class="w-full h-28 object-cover rounded-xl">
+                            ` : '<p class="text-xs text-slate-300 py-8">Tidak Ada Foto</p>'}
+                        </div>
+                        <div class="bg-slate-50 p-2 rounded-2xl text-center border border-slate-100">
+                            <p class="text-[10px] font-bold text-slate-400 mb-1">AFTER</p>
+                            ${order.photoAfter ? `
+                                <img src="${order.photoAfter}" class="w-full h-28 object-cover rounded-xl">
+                            ` : '<p class="text-xs text-slate-300 py-8">Tidak Ada Foto</p>'}
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        `;
+    }
+
+    // ==========================================
+    // KIRIM KE WHATSAPP
+    // ==========================================
+    function formatPhoneForWa(phone) {
+        let p = (phone || '').replace(/[^0-9]/g, '');
+        if (!p) return '';
+        if (p.startsWith('0')) p = '62' + p.slice(1);
+        else if (p.startsWith('62')) { /* sudah benar */ }
+        else if (!p.startsWith('62')) p = '62' + p;
+        return p;
+    }
+
+    function togglePaidStatus(orderId) {
+        const orders = getOrders();
+        const idx = orders.findIndex(o => o.id === orderId);
+        if (idx !== -1) {
+            orders[idx].paid = !orders[idx].paid;
+            saveOrders(orders);
+            navigateTo('order-detail', orderId);
+        }
+    }
+
+    function buildOrderWaMessage(order) {
+        const isDone = order.status === 'Delivered' || order.status === 'Ready';
+        const { totalPrice } = calculateOrderTotals(order.weightKg, order.service);
+
+        let msg = `room ${order.room} (${order.guestName})\n`
+            + `laundry : ${order.service === 'express' ? 'express' : 'reguler'}\n`
+            + `total pakaian : ${order.totalPakaian || '-'}`;
+
+        if (isDone) {
+            msg += `\nBerat: ${formatWeightDisplay(order.weightKg)} Kg`
+                + `\nTotal Biaya: ${formatRp(totalPrice)}`
+                + `\nStatus Bayar: ${order.paid ? 'Sudah Bayar ✅' : 'Belum Bayar ❌'}`;
+        }
+
+        return msg;
+    }
+
+    function sendOrderToWhatsApp(orderId, withPhoto = true) {
+        const orders = getOrders();
+        const order = orders.find(o => o.id === orderId);
+        if (!order) return;
+
+        const message = buildOrderWaMessage(order);
+        const waPhone = formatPhoneForWa(order.guestPhone);
+        const textUrl = waPhone
+            ? `https://wa.me/${waPhone}?text=${encodeURIComponent(message)}`
+            : `https://wa.me/?text=${encodeURIComponent(message)}`;
+
+        // Kalau diminta sertakan foto before & browser mendukung share file
+        if (withPhoto && order.photoBefore && navigator.share && navigator.canShare) {
+            fetch(order.photoBefore)
+                .then(res => res.blob())
+                .then(blob => {
+                    const file = new File([blob], `laundry-${order.id}-before.jpg`, { type: blob.type || 'image/jpeg' });
+                    if (navigator.canShare({ files: [file] })) {
+                        // WhatsApp sering tidak otomatis mengisi kolom pesan saat kirim foto,
+                        // jadi teksnya disalin ke clipboard supaya tinggal ditempel (paste).
+                        if (navigator.clipboard && navigator.clipboard.writeText) {
+                            navigator.clipboard.writeText(message).catch(() => {});
+                        }
+                        showToast('Teks pesan sudah disalin. Setelah pilih WhatsApp, tempel (paste) di kolom "Add a message" sebelum kirim.', 'info');
+                        return navigator.share({ files: [file], text: message });
+                    }
+                    window.open(textUrl, '_blank');
+                })
+                .catch(() => window.open(textUrl, '_blank'));
+        } else {
+            window.open(textUrl, '_blank');
+        }
+    }
+
+    function advanceOrderStatus(orderId, newStatus) {
+        const orders = getOrders();
+        const idx = orders.findIndex(o => o.id === orderId);
+        if (idx !== -1) {
+            orders[idx].status = newStatus;
+            saveOrders(orders);
+            navigateTo('order-detail', orderId);
+        }
+    }
+
+    function deleteOrder(orderId) {
+        showConfirm('Apakah Anda yakin ingin menghapus pesanan laundry ini?', () => {
+            let orders = getOrders();
+            orders = orders.filter(o => o.id !== orderId);
+            saveOrders(orders);
+            navigateTo('home');
+        }, { confirmLabel: 'Ya, Hapus', danger: true });
+    }
+
+    let activeStatusFilter = 'All';
+
+    function timeAgo(value) {
+        const m = Math.floor((Date.now() - new Date(value).getTime()) / 60000);
+        if (m < 1) return 'Baru saja';
+        if (m < 60) return m + ' mnt lalu';
+        const h = Math.floor(m / 60);
+        if (h < 24) return h + ' jam lalu';
+        return Math.floor(h / 24) + ' hari lalu';
+    }
+
+    function refreshActive() {
+        const c = document.getElementById('screen-container');
+        c.innerHTML = renderActiveOrdersScreen(false);
+    }
+
+    function quickAdvanceOrder(orderId, newStatus) {
+        const orders = getOrders();
+        const idx = orders.findIndex(o => o.id === orderId);
+        if (idx === -1) return;
+        orders[idx].status = newStatus;
+        saveOrders(orders);
+        showToast(`Kamar ${orders[idx].room} → ${newStatus === 'Delivered' ? 'Delivered' : newStatus}`, 'success');
+        refreshActive();
+    }
+
+    function renderActiveOrdersScreen(animate = true) {
+        const orders = getOrders();
+        const all = orders.filter(o => o.status !== 'Delivered');
+
+        const STEPS = ['Received', 'Processing', 'Ready'];
+        const STATUS = {
+            Received:   { grad: 'linear-gradient(140deg,#D97706 0%,#EA580C 100%)', color: '#EA580C', next: 'Processing', action: 'Mulai proses', icon: 'fa-play' },
+            Processing: { grad: 'linear-gradient(140deg,#3B82F6 0%,#6366F1 100%)', color: '#6366F1', next: 'Ready',      action: 'Tandai siap',  icon: 'fa-check' },
+            Ready:      { grad: 'linear-gradient(140deg,#8B5CF6 0%,#C026D3 100%)', color: '#A855F7', next: 'Delivered',  action: 'Antar ke kamar', icon: 'fa-door-open' }
+        };
+        const countBy = s => all.filter(o => o.status === s).length;
+
+        // Antrean: express dulu, lalu yang paling lama menunggu
+        const list = all
+            .filter(o => activeStatusFilter === 'All' || o.status === activeStatusFilter)
+            .sort((a, b) => (b.service === 'express') - (a.service === 'express') || new Date(a.createdAt) - new Date(b.createdAt));
+
+        const totalKg = all.reduce((s, o) => s + (parseFloat(o.weightKg) || 0), 0);
+        const totalRp = all.reduce((s, o) => s + calculateOrderTotals(o.weightKg, o.service).totalPrice, 0);
+        const unpaid = all.filter(o => !o.paid).length;
+
+        const tabs = [
+            { id: 'All', label: 'Semua', n: all.length, color: '#64748B' },
+            ...STEPS.map(s => ({ id: s, label: s, n: countBy(s), color: STATUS[s].color }))
+        ];
+
+        const card = (o, i) => {
+            const st = STATUS[o.status] || STATUS.Processing;
+            const step = Math.max(0, STEPS.indexOf(o.status));
+            const isExpress = o.service === 'express';
+            const { totalPrice } = calculateOrderTotals(o.weightKg, o.service);
+            return `
+                <div onclick="navigateTo('order-detail', '${o.id}')" style="--c:${st.color};--i:${i}"
+                     class="ao-card ${animate ? 'ao-in' : ''}">
+                    <div class="flex items-center gap-3">
+                        <span class="shrink-0 w-12 h-12 rounded-2xl text-white font-extrabold text-sm flex items-center justify-center" style="background:${st.grad};box-shadow:0 10px 18px -10px ${st.color}">${o.room}</span>
+                        <div class="min-w-0 flex-1">
+                            <h5 class="text-sm font-extrabold text-slate-800 truncate">${escapeHtml(o.guestName || 'Tamu Kamar ' + o.room)}</h5>
+                            <p class="text-[11px] text-slate-400 font-medium truncate">${o.id}</p>
+                        </div>
+                        <div class="text-right shrink-0">
+                            <p class="text-sm font-extrabold text-slate-800">${formatRp(totalPrice)}</p>
+                            <p class="text-[10px] font-bold mt-0.5 ${o.paid ? 'text-emerald-600' : 'text-rose-500'}">
+                                <i class="fa-solid ${o.paid ? 'fa-circle-check' : 'fa-circle-exclamation'} mr-0.5"></i>${o.paid ? 'Lunas' : 'Belum bayar'}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-1.5 mt-4" aria-label="Tahap: ${o.status}">
+                        ${STEPS.map((s, k) => `
+                            <div>
+                                <div class="h-1.5 rounded-full" style="background:${k <= step ? st.grad : '#E2E8F0'}"></div>
+                                <p class="mt-1.5 text-[10px] font-semibold ${k === step ? 'text-slate-800' : 'text-slate-400'}">${s}</p>
+                            </div>
+                        `).join('')}
+                    </div>
+
+                    <div class="flex items-center gap-2 mt-3 text-[11px] font-semibold text-slate-500">
+                        <span class="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-slate-50 border border-slate-100"><i class="fa-solid fa-weight-scale text-slate-400"></i>${formatWeightDisplay(o.weightKg)} Kg</span>
+                        <span class="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg ${isExpress ? 'bg-amber-50 text-amber-700 border border-amber-100' : 'bg-slate-50 border border-slate-100'}"><i class="fa-solid ${isExpress ? 'fa-bolt' : 'fa-shirt'} ${isExpress ? '' : 'text-slate-400'}"></i>${isExpress ? 'Express' : 'Regular'}</span>
+                        <span class="ml-auto inline-flex items-center gap-1 text-slate-400"><i class="fa-regular fa-clock"></i>${timeAgo(o.createdAt)}</span>
+                    </div>
+
+                    <button type="button" onclick="event.stopPropagation(); quickAdvanceOrder('${o.id}', '${st.next}')"
+                            class="mt-3.5 w-full py-2.5 rounded-xl text-white text-xs font-bold flex items-center justify-center gap-2 active:scale-[.98] transition-transform"
+                            style="background:${st.grad}">
+                        <i class="fa-solid ${st.icon} text-[11px]"></i>${st.action}
+                    </button>
+                </div>`;
+        };
+
+        return `
+            <div class="rooms-wrap p-6 lg:p-8 space-y-5">
+                <div>
+                    <h2 class="text-[28px] leading-tight font-extrabold text-slate-800">Laundry Aktif</h2>
+                    <p class="text-slate-500 text-xs mt-1.5">
+                        ${all.length === 0 ? 'Daftar pesanan laundry yang sedang berjalan'
+                          : `<b class="text-slate-700">${all.length} order</b> berjalan, <b class="text-slate-700">${formatWeightDisplay(Math.round(totalKg * 10) / 10)} Kg</b> senilai <b class="text-indigo-600">${formatRp(totalRp)}</b>${unpaid ? `, ${unpaid} belum dibayar` : ''}`}
+                    </p>
+                </div>
+
+                <div class="flex gap-2 overflow-x-auto scrollbar-none pb-1 -mx-1 px-1">
+                    ${tabs.map(t => `
+                        <button type="button" onclick="activeStatusFilter = '${t.id}'; refreshActive()"
+                                class="shrink-0 inline-flex items-center gap-2 pl-3 pr-3.5 py-2 rounded-full text-xs font-bold transition-all ${activeStatusFilter === t.id ? 'bg-slate-800 text-white shadow-md' : 'bg-white/80 text-slate-600 border border-slate-100'}">
+                            <span class="w-2 h-2 rounded-full" style="background:${t.color}"></span>${t.label}
+                            <span class="${activeStatusFilter === t.id ? 'text-white/70' : 'text-slate-400'}">${t.n}</span>
+                        </button>
+                    `).join('')}
+                </div>
+
+                ${list.length === 0 ? `
+                    <div class="bg-white/80 rounded-3xl p-10 text-center border border-dashed border-slate-200">
+                        <span class="mx-auto w-14 h-14 rounded-2xl bg-indigo-50 text-indigo-500 flex items-center justify-center text-xl"><i class="fa-solid fa-jug-detergent"></i></span>
+                        <p class="mt-4 text-sm font-extrabold text-slate-700">${all.length === 0 ? 'Belum ada laundry aktif' : 'Tidak ada order berstatus ' + activeStatusFilter}</p>
+                        <p class="mt-1 text-xs text-slate-400">${all.length === 0 ? 'Order baru akan muncul di sini.' : 'Pilih status lain untuk melihat order.'}</p>
+                        ${all.length === 0 ? `<button type="button" onclick="openCreateOrderModal()" class="mt-5 px-5 py-2.5 rounded-xl bg-gradient-brand text-white text-xs font-bold shadow-glow">Buat order baru</button>` : ''}
+                    </div>
+                ` : `
+                    <div class="grid gap-3.5 md:grid-cols-2 xl:grid-cols-3">
+                        ${list.map((o, i) => card(o, i)).join('')}
+                    </div>
+                `}
+            </div>
+        `;
+    }
+
+    let historyFilter = 'All';
+    let historySearchQuery = '';
+    let historyDateMode = 'all';   // all | today | yesterday | 7d | 30d | custom
+    let historyDateFrom = '';      // format YYYY-MM-DD (tanggal lokal)
+    let historyDateTo = '';
+
+    const HISTORY_DATE_CHIPS = [
+        { id: 'all', label: 'Semua' },
+        { id: 'today', label: 'Hari Ini' },
+        { id: 'yesterday', label: 'Kemarin' },
+        { id: '7d', label: '7 Hari' },
+        { id: '30d', label: '30 Hari' },
+        { id: 'custom', label: 'Pilih Tanggal' }
+    ];
+
+    // ---------- Helper tanggal (selalu memakai zona waktu perangkat) ----------
+    function dateKey(value) {
+        const d = value instanceof Date ? value : new Date(value);
+        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    }
+
+    function shiftDate(date, days) {
+        const d = new Date(date);
+        d.setDate(d.getDate() + days);
+        return d;
+    }
+
+    function keyToDate(key) {
+        const [y, m, d] = key.split('-').map(Number);
+        return new Date(y, m - 1, d);
+    }
+
+    function formatDateLong(key) {
+        return keyToDate(key).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    }
+
+    function formatDateShort(key) {
+        return keyToDate(key).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+    }
+
+    function relativeDayLabel(key) {
+        const today = new Date();
+        if (key === dateKey(today)) return 'Hari Ini';
+        if (key === dateKey(shiftDate(today, -1))) return 'Kemarin';
+        return '';
+    }
+
+    function getHistoryDateRange() {
+        const today = new Date();
+        switch (historyDateMode) {
+            case 'today':     return { from: dateKey(today), to: dateKey(today) };
+            case 'yesterday': { const y = dateKey(shiftDate(today, -1)); return { from: y, to: y }; }
+            case '7d':        return { from: dateKey(shiftDate(today, -6)), to: dateKey(today) };
+            case '30d':       return { from: dateKey(shiftDate(today, -29)), to: dateKey(today) };
+            case 'custom': {
+                let from = historyDateFrom, to = historyDateTo;
+                if (from && to && from > to) [from, to] = [to, from];
+                return { from, to };
+            }
+            default: return null;
+        }
+    }
+
+    function describeHistoryPeriod() {
+        const range = getHistoryDateRange();
+        if (!range) return 'Semua tanggal';
+        if (historyDateMode === 'today') return 'Hari ini';
+        if (historyDateMode === 'yesterday') return 'Kemarin';
+        if (!range.from && !range.to) return 'Semua tanggal';
+        if (range.from && range.to) return range.from === range.to ? formatDateShort(range.from) : formatDateShort(range.from) + ' – ' + formatDateShort(range.to);
+        return range.from ? 'Sejak ' + formatDateShort(range.from) : 'Sampai ' + formatDateShort(range.to);
+    }
+
+    // ---------- Aksi filter ----------
+    // Render ulang Riwayat tanpa kehilangan posisi scroll / fokus input
+    function refreshHistory(focusId) {
+        const container = document.getElementById('screen-container');
+        const top = container.scrollTop;
+        historyAnimate = false;
+        navigateTo('history');
+        container.scrollTop = top;
+        if (focusId) {
+            const el = document.getElementById(focusId);
+            if (el) {
+                el.focus();
+                if (el.type === 'text') el.setSelectionRange(el.value.length, el.value.length);
+            }
+        }
+    }
+
+    function setHistoryDateMode(mode) {
+        historyDateMode = mode;
+        if (mode === 'custom' && !historyDateFrom && !historyDateTo) {
+            historyDateFrom = historyDateTo = dateKey(new Date());
+        }
+        refreshHistory();
+    }
+
+    function setHistoryDate(which, value) {
+        if (which === 'from') historyDateFrom = value; else historyDateTo = value;
+        refreshHistory();
+    }
+
+    function resetHistoryFilters() {
+        historyFilter = 'All';
+        historySearchQuery = '';
+        historyDateMode = 'all';
+        historyDateFrom = '';
+        historyDateTo = '';
+        refreshHistory();
+    }
+
+    // ---------- Layar Riwayat ----------
+    let historyAnimate = true;
+
+    function renderHistoryScreen() {
+        const animate = historyAnimate;
+        historyAnimate = true;
+
+        const orders = getOrders();
+        const range = getHistoryDateRange();
+        const query = historySearchQuery.toLowerCase();
+
+        const filtered = orders.filter(o => {
+            const matchesSearch = o.room.includes(historySearchQuery) ||
+                                  (o.guestName || '').toLowerCase().includes(query) ||
+                                  o.id.toLowerCase().includes(query);
+            if (!matchesSearch) return false;
+
+            if (range) {
+                const k = dateKey(o.createdAt);
+                if (range.from && k < range.from) return false;
+                if (range.to && k > range.to) return false;
+            }
+
+            if (historyFilter === 'All') return true;
+            if (historyFilter === 'Regular') return o.service === 'regular';
+            if (historyFilter === 'Express') return o.service === 'express';
+            if (historyFilter === 'Completed' || historyFilter === 'Delivered') return o.status === 'Delivered';
+            return true;
+        }).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+        // Kelompokkan per tanggal laundry
+        const groups = {};
+        filtered.forEach(o => {
+            const k = dateKey(o.createdAt);
+            (groups[k] = groups[k] || []).push(o);
+        });
+        const dayKeys = Object.keys(groups).sort().reverse();
+
+        const sumOf = list => list.reduce((acc, o) => {
+            acc.kg += parseFloat(o.weightKg) || 0;
+            acc.rp += calculateOrderTotals(o.weightKg, o.service).totalPrice;
+            return acc;
+        }, { kg: 0, rp: 0 });
+        const fmtKg = kg => formatWeightDisplay(Math.round(kg * 10) / 10);
+        const total = sumOf(filtered);
+        const expressN = filtered.filter(o => o.service === 'express').length;
+        const regularN = filtered.length - expressN;
+
+        const hasFilter = historyDateMode !== 'all' || historyFilter !== 'All' || historySearchQuery !== '';
+
+        const STATUS_COLOR = {
+            Received:   { grad: 'linear-gradient(140deg,#D97706 0%,#EA580C 100%)', color: '#EA580C' },
+            Processing: { grad: 'linear-gradient(140deg,#3B82F6 0%,#6366F1 100%)', color: '#6366F1' },
+            Ready:      { grad: 'linear-gradient(140deg,#8B5CF6 0%,#C026D3 100%)', color: '#A855F7' },
+            Delivered:  { grad: 'linear-gradient(140deg,#10B981 0%,#059669 100%)', color: '#059669' }
+        };
+        let idx = 0;
+        const row = o => {
+            const st = STATUS_COLOR[o.status] || STATUS_COLOR.Delivered;
+            const { totalPrice } = calculateOrderTotals(o.weightKg, o.service);
+            const isExpress = o.service === 'express';
+            const time = new Date(o.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+            return `
+                <div onclick="navigateTo('order-detail', '${o.id}')" style="--i:${Math.min(idx++, 12)}"
+                     class="${animate ? 'ao-in' : ''} flex items-center gap-3 p-3 rounded-2xl bg-white border border-slate-100 shadow-soft cursor-pointer active:scale-[.985] transition-transform">
+                    <span class="shrink-0 w-11 h-11 rounded-2xl text-white font-extrabold text-sm flex items-center justify-center" style="background:${st.grad}">${o.room}</span>
+                    <div class="min-w-0 flex-1">
+                        <h5 class="text-sm font-extrabold text-slate-800 truncate">${escapeHtml(o.guestName || 'Tamu Kamar ' + o.room)}</h5>
+                        <p class="text-[11px] mt-0.5 text-slate-400 font-medium truncate">
+                            <span class="font-bold" style="color:${st.color}">${o.status}</span>
+                            ${o.id}, ${formatWeightDisplay(o.weightKg)} Kg
+                            <i class="fa-solid ${isExpress ? 'fa-bolt text-amber-500' : 'fa-shirt'} ml-0.5"></i>
+                        </p>
+                    </div>
+                    <div class="shrink-0 text-right">
+                        <p class="text-xs font-extrabold text-slate-800">${formatRp(totalPrice)}</p>
+                        <p class="text-[11px] text-slate-400 font-medium mt-0.5">${time}</p>
+                    </div>
+                </div>`;
+        };
+
+        const todayKey = dateKey(new Date());
+        const FILTERS = [['All', 'Semua'], ['Regular', 'Reguler'], ['Express', 'Express'], ['Delivered', 'Selesai']];
+
+        return `
+            <div class="rooms-wrap p-6 lg:p-8 space-y-5">
+                <div>
+                    <h2 class="text-[28px] leading-tight font-extrabold text-slate-800">Riwayat Pesanan</h2>
+                    <p class="text-slate-500 text-xs mt-1.5">Cari dan filter riwayat pesanan berdasarkan tanggal laundry</p>
+                </div>
+
+                <div class="relative md:max-w-md">
+                    <span class="absolute inset-y-0 left-0 pl-4 flex items-center text-slate-400">
+                        <i class="fa-solid fa-magnifying-glass text-xs"></i>
+                    </span>
+                    <input type="text" id="historySearch" placeholder="Cari kamar, nama tamu, atau ID order"
+                           value="${escapeHtml(historySearchQuery)}"
+                           oninput="historySearchQuery = this.value; refreshHistory('historySearch');"
+                           class="w-full pl-10 pr-4 py-3.5 bg-white border border-slate-200 rounded-2xl text-xs font-medium focus:outline-none focus:border-indigo-500 shadow-soft">
+                </div>
+
+                <div class="space-y-2.5">
+                    <div class="flex gap-2 overflow-x-auto scrollbar-none pb-1 -mx-1 px-1">
+                        ${FILTERS.map(([id, label]) => `
+                            <button type="button" onclick="historyFilter = '${id}'; refreshHistory()"
+                                    class="shrink-0 px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all ${historyFilter === id ? 'bg-slate-800 text-white shadow-md' : 'bg-white/80 text-slate-600 border border-slate-100'}">
+                                ${label}
+                            </button>
+                        `).join('')}
+                    </div>
+
+                    <div class="flex items-center gap-2 overflow-x-auto scrollbar-none pb-1 -mx-1 px-1">
+                        <span class="shrink-0 w-8 h-8 rounded-full bg-indigo-50 text-indigo-500 flex items-center justify-center">${svgIcon('calendar', 'w-4 h-4')}</span>
+                        ${HISTORY_DATE_CHIPS.map(chip => `
+                            <button type="button" onclick="setHistoryDateMode('${chip.id}')"
+                                    class="shrink-0 px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all ${historyDateMode === chip.id ? 'bg-indigo-600 text-white shadow-md' : 'bg-white/80 text-slate-600 border border-slate-100'}">
+                                ${chip.label}
+                            </button>
+                        `).join('')}
+                    </div>
+
+                    ${historyDateMode === 'custom' ? `
+                        <div class="grid grid-cols-2 gap-3 sm:max-w-md bg-white rounded-2xl border border-slate-100 shadow-soft p-3">
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-500 mb-1">Dari</label>
+                                <input type="date" value="${historyDateFrom}"
+                                       onchange="setHistoryDate('from', this.value)"
+                                       class="w-full py-2.5 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:border-indigo-500">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-500 mb-1">Sampai</label>
+                                <input type="date" value="${historyDateTo}"
+                                       onchange="setHistoryDate('to', this.value)"
+                                       class="w-full py-2.5 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:border-indigo-500">
+                            </div>
+                        </div>
+                    ` : ''}
+
+                    ${hasFilter ? `<button type="button" onclick="resetHistoryFilters()" class="text-xs font-bold text-indigo-600"><i class="fa-solid fa-rotate-left mr-1"></i>Reset filter</button>` : ''}
+                </div>
+
+                <!-- Ringkasan periode -->
+                <div class="bg-gradient-brand text-white rounded-3xl p-5 relative overflow-hidden shadow-glow">
+                    <div class="home-drum" style="width:200px;height:200px;top:-60px;right:-60px" aria-hidden="true"></div>
+                    <div class="relative">
+                        <p class="text-xs text-indigo-100 font-medium">Total biaya, ${describeHistoryPeriod()}</p>
+                        <p class="text-[34px] leading-none font-extrabold tracking-tight mt-1.5">${formatRp(total.rp)}</p>
+                        <div class="flex flex-wrap gap-2 mt-4 text-[11px] font-semibold">
+                            <span class="px-2.5 py-1 rounded-full bg-white/20">${filtered.length} order</span>
+                            <span class="px-2.5 py-1 rounded-full bg-white/20">${fmtKg(total.kg)} Kg</span>
+                            <span class="px-2.5 py-1 rounded-full bg-white/20"><i class="fa-solid fa-bolt mr-1"></i>${expressN} Express</span>
+                            <span class="px-2.5 py-1 rounded-full bg-white/20"><i class="fa-solid fa-shirt mr-1"></i>${regularN} Reguler</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Daftar per tanggal -->
+                ${filtered.length === 0 ? `
+                    <div class="bg-white/80 rounded-3xl p-10 text-center border border-dashed border-slate-200">
+                        <span class="mx-auto w-14 h-14 rounded-2xl bg-indigo-50 text-indigo-500 flex items-center justify-center text-xl"><i class="fa-solid fa-clock-rotate-left"></i></span>
+                        <p class="mt-4 text-sm font-extrabold text-slate-700">Tidak ada riwayat</p>
+                        <p class="mt-1 text-xs text-slate-400">Belum ada order pada tanggal atau filter ini.</p>
+                        ${hasFilter ? `<button type="button" onclick="resetHistoryFilters()" class="mt-4 text-xs font-bold text-indigo-600">Reset filter</button>` : ''}
+                    </div>
+                ` : `
+                    <div class="space-y-7 pt-1">
+                        ${dayKeys.map(k => {
+                            const list = groups[k];
+                            const t = sumOf(list);
+                            const rel = relativeDayLabel(k);
+                            return `
+                                <section class="hist-day">
+                                    <span class="hist-dot" aria-hidden="true"></span>
+                                    <div class="mb-3">
+                                        <div class="flex items-center gap-2">
+                                            <h3 class="text-sm font-extrabold text-slate-800">${formatDateLong(k)}</h3>
+                                            ${rel ? `<span class="text-[11px] font-bold text-white bg-indigo-600 px-2 py-0.5 rounded-full">${rel}</span>` : ''}
+                                        </div>
+                                        <p class="text-[11px] text-slate-500 mt-0.5">${list.length} order, ${fmtKg(t.kg)} Kg, <strong class="text-slate-700">${formatRp(t.rp)}</strong></p>
+                                    </div>
+                                    <div class="grid gap-2.5 md:grid-cols-2 xl:grid-cols-3">
+                                        ${list.map(row).join('')}
+                                    </div>
+                                </section>
+                            `;
+                        }).join('')}
+                    </div>
+                `}
+            </div>
+        `;
+    }
+
+    // ==========================================
+    // SETTINGS: BACKUP, IMPORT, LAPORAN BULANAN
+    // ==========================================
+    function renderSettingsScreen() {
+        const orders = getOrders();
+        const report = computeMonthlyReport(reportMonth);
+
+        const monthOptions = [];
+        const now = new Date();
+        for (let i = 0; i < 12; i++) {
+            const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            const val = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+            const label = d.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+            monthOptions.push({ val, label });
+        }
+
+        return `
+            <div class="p-6 lg:p-8 space-y-6 pb-10">
+                <!-- Header -->
+                <div class="flex items-center gap-3">
+                    <button onclick="navigateTo('home')" class="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-600 shadow-sm">
+                        <i class="fa-solid fa-chevron-left"></i>
+                    </button>
+                    <div>
+                        <h2 class="text-xl font-extrabold text-slate-800">Pengaturan</h2>
+                        <p class="text-xs text-slate-500 mt-0.5">Backup, import, dan laporan data</p>
+                    </div>
+                </div>
+
+                ${renderAccountCard()}
+
+                <div class="grid gap-5 md:grid-cols-2 md:items-start">
+                <div class="space-y-5">
+                <!-- Backup & Import -->
+                <div class="bg-white rounded-3xl p-5 shadow-soft border border-slate-100 space-y-4">
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center"><i class="fa-solid fa-cloud-arrow-down"></i></span>
+                        <div>
+                            <h3 class="text-sm font-extrabold text-slate-800">Backup & Import Data</h3>
+                            <p class="text-[11px] text-slate-400">Simpan atau pulihkan seluruh data order</p>
+                        </div>
+                    </div>
+
+                    <div class="rounded-2xl bg-slate-50 border border-slate-100 p-3.5 flex items-center justify-between">
+                        <div>
+                            <p class="text-xs font-bold text-slate-700">${orders.length} order tersimpan</p>
+                            <p class="text-[11px] text-slate-400 mt-0.5">Total data yang akan dibackup</p>
+                        </div>
+                        <button onclick="exportBackupData()" class="shrink-0 inline-flex items-center gap-1.5 px-4 py-2.5 bg-slate-800 text-white text-xs font-bold rounded-xl active:scale-95 transition-transform">
+                            <i class="fa-solid fa-download"></i> Backup
+                        </button>
+                    </div>
+
+                    <div class="rounded-2xl bg-slate-50 border border-dashed border-slate-200 p-3.5 flex items-center justify-between">
+                        <div>
+                            <p class="text-xs font-bold text-slate-700">Impor dari file backup</p>
+                            <p class="text-[11px] text-slate-400 mt-0.5">Format file .json hasil backup</p>
+                        </div>
+                        <button onclick="document.getElementById('importFileInput').click()" class="shrink-0 inline-flex items-center gap-1.5 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 text-xs font-bold rounded-xl active:scale-95 transition-transform">
+                            <i class="fa-solid fa-upload"></i> Impor
+                        </button>
+                        <input type="file" id="importFileInput" accept="application/json,.json" class="hidden" onchange="handleImportFile(event)">
+                    </div>
+                </div>
+
+                <!-- Reset -->
+                <div class="bg-white rounded-3xl p-5 shadow-soft border border-slate-100 space-y-3">
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-9 h-9 rounded-xl bg-red-50 text-red-500 flex items-center justify-center"><i class="fa-solid fa-trash-can"></i></span>
+                        <div>
+                            <h3 class="text-sm font-extrabold text-slate-800">Reset Data</h3>
+                            <p class="text-[11px] text-slate-400">Hapus semua order secara permanen</p>
+                        </div>
+                    </div>
+                    <button onclick="confirmResetData()" class="w-full py-2.5 rounded-xl bg-red-50 text-red-600 text-xs font-bold active:scale-95 transition-transform">
+                        Hapus Semua Data
+                    </button>
+                    <p class="text-[11px] text-slate-400">Sebaiknya backup data terlebih dahulu sebelum reset.</p>
+                </div>
+                </div>
+
+                <!-- Laporan Bulanan -->
+                <div class="bg-white rounded-3xl p-5 shadow-soft border border-slate-100 space-y-4">
+                    <div class="flex items-center justify-between gap-2 flex-wrap">
+                        <div class="flex items-center gap-2.5">
+                            <span class="w-9 h-9 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center"><i class="fa-solid fa-chart-column"></i></span>
+                            <div>
+                                <h3 class="text-sm font-extrabold text-slate-800">Laporan Bulanan</h3>
+                                <p class="text-[11px] text-slate-400">Rekap order per bulan</p>
+                            </div>
+                        </div>
+                        <select onchange="setReportMonth(this.value)" class="text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:border-indigo-500">
+                            ${monthOptions.map(m => `<option value="${m.val}" ${m.val === reportMonth ? 'selected' : ''}>${m.label}</option>`).join('')}
+                        </select>
+                    </div>
+
+                    <div class="bg-gradient-brand text-white rounded-3xl p-5 relative overflow-hidden shadow-glow">
+                        <div class="home-drum" style="width:180px;height:180px;top:-50px;right:-50px" aria-hidden="true"></div>
+                        <div class="relative">
+                            <p class="text-xs text-indigo-100 font-medium">Total pendapatan, ${report.monthLabel}</p>
+                            <p class="text-[32px] leading-none font-extrabold tracking-tight mt-1.5">${formatRp(report.totalRp)}</p>
+                            <div class="flex flex-wrap gap-2 mt-4 text-[11px] font-semibold">
+                                <span class="px-2.5 py-1 rounded-full bg-white/20">${report.count} order</span>
+                                <span class="px-2.5 py-1 rounded-full bg-white/20">${formatWeightDisplay(Math.round(report.totalKg * 10) / 10)} Kg</span>
+                                <span class="px-2.5 py-1 rounded-full bg-white/20"><i class="fa-solid fa-bolt mr-1"></i>${report.expressN} Express</span>
+                                <span class="px-2.5 py-1 rounded-full bg-white/20"><i class="fa-solid fa-shirt mr-1"></i>${report.regularN} Reguler</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    ${report.count === 0 ? `
+                        <div class="rounded-2xl border border-dashed border-slate-200 p-6 text-center">
+                            <p class="text-xs text-slate-400">Tidak ada order pada bulan ini.</p>
+                        </div>
+                    ` : `
+                        <div class="rounded-2xl border border-slate-100 divide-y divide-slate-100 max-h-64 overflow-y-auto">
+                            ${report.dayKeys.map(k => `
+                                <div class="flex items-center justify-between px-3.5 py-2.5">
+                                    <div>
+                                        <p class="text-xs font-bold text-slate-700">${formatDateShort(k)}</p>
+                                        <p class="text-[11px] text-slate-400">${report.byDay[k].count} order, ${formatWeightDisplay(Math.round(report.byDay[k].kg * 10) / 10)} Kg</p>
+                                    </div>
+                                    <p class="text-xs font-extrabold text-slate-800">${formatRp(report.byDay[k].rp)}</p>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <div class="grid grid-cols-2 gap-2.5">
+                            <button onclick="exportMonthlyReportHTML()" class="inline-flex items-center justify-center gap-1.5 py-3 rounded-xl bg-gradient-brand text-white text-xs font-bold shadow-glow active:scale-95 transition-transform">
+                                <i class="fa-solid fa-file-invoice"></i> Unduh Laporan
+                            </button>
+                            <button onclick="exportMonthlyReportCSV()" class="inline-flex items-center justify-center gap-1.5 py-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-600 text-xs font-bold active:scale-95 transition-transform">
+                                <i class="fa-solid fa-file-csv"></i> Data CSV
+                            </button>
+                        </div>
+                    `}
+                </div>
+                </div>
+            </div>
+        `;
+    }
+
+    function setReportMonth(value) {
+        reportMonth = value;
+        navigateTo('settings');
+    }
+
+    function computeMonthlyReport(monthStr) {
+        const orders = getOrders().filter(o => dateKey(o.createdAt).slice(0, 7) === monthStr);
+        const monthLabel = keyToDate(monthStr + '-01').toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+
+        const byDay = {};
+        let totalRp = 0, totalKg = 0, expressN = 0, regularN = 0;
+
+        orders.forEach(o => {
+            const k = dateKey(o.createdAt);
+            const { totalPrice } = calculateOrderTotals(o.weightKg, o.service);
+            const kg = parseFloat(o.weightKg) || 0;
+
+            if (!byDay[k]) byDay[k] = { count: 0, kg: 0, rp: 0 };
+            byDay[k].count += 1;
+            byDay[k].kg += kg;
+            byDay[k].rp += totalPrice;
+
+            totalRp += totalPrice;
+            totalKg += kg;
+            if (o.service === 'express') expressN++; else regularN++;
+        });
+
+        const dayKeys = Object.keys(byDay).sort((a, b) => b.localeCompare(a));
+
+        return { monthLabel, count: orders.length, totalRp, totalKg, expressN, regularN, byDay, dayKeys, orders };
+    }
+
+    function exportBackupData() {
+        const payload = {
+            app: 'Hotel Laundry - Smart Laundry Management',
+            exportedAt: new Date().toISOString(),
+            version: 1,
+            orders: getOrders()
+        };
+        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `hotel-laundry-backup-${dateKey(new Date())}.json`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        showToast('Backup data berhasil diunduh.', 'success');
+    }
+
+    function handleImportFile(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const data = JSON.parse(e.target.result);
+                const importedOrders = Array.isArray(data) ? data : data.orders;
+                if (!Array.isArray(importedOrders)) throw new Error('invalid');
+
+                pendingImportOrders = importedOrders;
+                renderImportConfirmModal(importedOrders.length);
+            } catch (err) {
+                showToast('File backup tidak valid.', 'warn');
+            }
+            event.target.value = '';
+        };
+        reader.readAsText(file);
+    }
+
+    function renderImportConfirmModal(count) {
+        const modal = document.getElementById('modal-container');
+        modal.classList.remove('hidden');
+        modal.innerHTML = `
+            <div class="bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl overflow-hidden animate-slide-up shadow-2xl">
+                <div class="p-6 space-y-4 text-center">
+                    <span class="mx-auto w-14 h-14 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-xl"><i class="fa-solid fa-file-import"></i></span>
+                    <div>
+                        <h3 class="text-base font-extrabold text-slate-800">Impor ${count} Order?</h3>
+                        <p class="text-xs text-slate-500 mt-1.5">Pilih cara memasukkan data dari file backup ini.</p>
+                    </div>
+                    <div class="space-y-2.5 pt-1">
+                        <button onclick="applyImport('merge')" class="w-full py-3 rounded-xl bg-slate-800 text-white text-xs font-bold active:scale-95 transition-transform">
+                            Gabungkan dengan data saat ini
+                        </button>
+                        <button onclick="applyImport('replace')" class="w-full py-3 rounded-xl bg-red-50 text-red-600 text-xs font-bold active:scale-95 transition-transform">
+                            Timpa (ganti semua data)
+                        </button>
+                        <button onclick="pendingImportOrders = null; closeModal();" class="w-full py-3 rounded-xl bg-white border border-slate-200 text-slate-500 text-xs font-bold active:scale-95 transition-transform">
+                            Batal
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    function applyImport(mode) {
+        if (!isAdmin()) { showToast('Hanya admin yang dapat mengimpor data.', 'warn'); return; }
+        if (!pendingImportOrders) return;
+
+        if (mode === 'replace') {
+            saveOrders(pendingImportOrders);
+        } else {
+            const current = getOrders();
+            const existingIds = new Set(current.map(o => o.id));
+            const merged = current.concat(pendingImportOrders.filter(o => !existingIds.has(o.id)));
+            saveOrders(merged);
+        }
+
+        pendingImportOrders = null;
+        closeModal();
+        showToast('Data berhasil diimpor.', 'success');
+        navigateTo('settings');
+    }
+
+    function confirmResetData() {
+        if (!isAdmin()) { showToast('Hanya admin yang dapat menghapus semua data.', 'warn'); return; }
+        showConfirm(
+            'Semua order akan dihapus permanen dan tidak bisa dikembalikan. Pastikan Anda sudah backup data terlebih dahulu.' + (getSyncCfg().url ? ' Karena sinkronisasi aktif, data di semua HP ikut terhapus.' : ''),
+            () => {
+                saveOrders([]);
+                showToast('Semua data order telah dihapus.', 'success');
+                navigateTo('home');
+            },
+            { confirmLabel: 'Ya, Hapus Semua', danger: true }
+        );
+    }
+
+    function exportMonthlyReportCSV() {
+        const report = computeMonthlyReport(reportMonth);
+        const header = ['ID Order', 'Tanggal', 'Kamar', 'Nama Tamu', 'Layanan', 'Berat (Kg)', 'Status', 'Total (Rp)'];
+        const rows = report.orders.map(o => {
+            const { totalPrice } = calculateOrderTotals(o.weightKg, o.service);
+            return [
+                o.id,
+                dateKey(o.createdAt),
+                o.room,
+                (o.guestName || 'Tamu Kamar ' + o.room),
+                o.service,
+                formatWeightDisplay(o.weightKg),
+                o.status,
+                Math.round(totalPrice)
+            ];
+        });
+
+        // Delimiter ";" agar kolom terbaca rapi di Excel/WPS versi Indonesia
+        // (locale ID memakai koma sebagai pemisah desimal, bukan pemisah kolom).
+        const csvContent = [header, ...rows]
+            .map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(';'))
+            .join('\r\n');
+
+        const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `data-laundry-${reportMonth}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        showToast('Data CSV berhasil diunduh.', 'success');
+    }
+
+    function exportMonthlyReportHTML() {
+        const report = computeMonthlyReport(reportMonth);
+        const generatedAt = new Date().toLocaleString('id-ID', { dateStyle: 'full', timeStyle: 'short' });
+
+        const SERVICE_BADGE = {
+            express: 'background:#FFF7ED;color:#C2410C;',
+            regular: 'background:#EEF2FF;color:#4338CA;'
+        };
+        const STATUS_BADGE = {
+            Received:   'background:#FFFBEB;color:#B45309;',
+            Processing: 'background:#EFF6FF;color:#2563EB;',
+            Ready:      'background:#FAF5FF;color:#9333EA;',
+            Delivered:  'background:#ECFDF5;color:#059669;'
+        };
+
+        const dayRows = report.dayKeys.map(k => `
+            <tr>
+                <td>${formatDateLong(k)}</td>
+                <td class="num">${report.byDay[k].count}</td>
+                <td class="num">${formatWeightDisplay(Math.round(report.byDay[k].kg * 10) / 10)} Kg</td>
+                <td class="num strong">${formatRp(report.byDay[k].rp)}</td>
+            </tr>`).join('');
+
+        const orderRows = [...report.orders]
+            .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
+            .map(o => {
+                const { totalPrice } = calculateOrderTotals(o.weightKg, o.service);
+                return `
+            <tr>
+                <td>${o.id}</td>
+                <td>${dateKey(o.createdAt)}</td>
+                <td>${o.room}</td>
+                <td>${escapeHtml(o.guestName || 'Tamu Kamar ' + o.room)}</td>
+                <td><span class="badge" style="${SERVICE_BADGE[o.service] || SERVICE_BADGE.regular}">${o.service === 'express' ? 'Express' : 'Reguler'}</span></td>
+                <td class="num">${formatWeightDisplay(o.weightKg)} Kg</td>
+                <td><span class="badge" style="${STATUS_BADGE[o.status] || STATUS_BADGE.Delivered}">${o.status}</span></td>
+                <td class="num strong">${formatRp(totalPrice)}</td>
+            </tr>`;
+            }).join('');
+
+        const html = `<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Laporan Laundry - ${report.monthLabel}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+    :root{
+        --blue:#3B82F6; --indigo:#6366F1; --purple:#8B5CF6;
+        --text:#1E293B; --muted:#64748B; --border:#E2E8F0; --bg:#F5F7FF;
+    }
+    *{box-sizing:border-box;}
+    body{
+        margin:0; font-family:'Plus Jakarta Sans',sans-serif; background:var(--bg);
+        color:var(--text); padding:32px 16px;
+    }
+    .sheet{ max-width:880px; margin:0 auto; }
+    .hero{
+        background:linear-gradient(135deg, var(--blue) 0%, var(--indigo) 50%, var(--purple) 100%);
+        color:#fff; border-radius:28px; padding:36px 32px; position:relative; overflow:hidden;
+        box-shadow:0 20px 40px -15px rgba(99,102,241,.45);
+    }
+    .hero::after{
+        content:''; position:absolute; width:260px; height:260px; border-radius:50%;
+        background:rgba(255,255,255,.12); top:-90px; right:-70px;
+    }
+    .hero-top{ display:flex; align-items:center; gap:14px; position:relative; z-index:1; }
+    .hero-logo{
+        width:52px; height:52px; border-radius:16px; background:rgba(255,255,255,.2);
+        border:1px solid rgba(255,255,255,.35); display:flex; align-items:center; justify-content:center; font-size:20px;
+    }
+    .hero-top h1{ margin:0; font-size:18px; font-weight:800; }
+    .hero-top p{ margin:2px 0 0; font-size:12px; color:#E0E7FF; }
+    .hero h2{ position:relative; z-index:1; margin:28px 0 4px; font-size:13px; font-weight:600; color:#E0E7FF; }
+    .hero .amount{ position:relative; z-index:1; margin:0; font-size:40px; font-weight:800; letter-spacing:-.5px; }
+    .hero .period{ position:relative; z-index:1; margin:6px 0 0; font-size:13px; color:#E0E7FF; font-weight:600; }
+
+    .stats{ display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-top:-28px; padding:0 8px; position:relative; z-index:2; }
+    .stat{
+        background:#fff; border-radius:20px; padding:16px 14px; text-align:center;
+        box-shadow:0 10px 25px -8px rgba(99,102,241,.15); border:1px solid #EEF2FF;
+    }
+    .stat .n{ font-size:22px; font-weight:800; margin:0; }
+    .stat .l{ font-size:11px; color:var(--muted); font-weight:600; margin:4px 0 0; }
+
+    .card{
+        background:#fff; border-radius:24px; padding:24px; margin-top:24px;
+        border:1px solid #EEF2FF; box-shadow:0 10px 25px -10px rgba(99,102,241,.1);
+    }
+    .card h3{ margin:0 0 16px; font-size:14px; font-weight:800; display:flex; align-items:center; gap:8px; }
+    .card h3 i{ color:var(--indigo); }
+
+    table{ width:100%; border-collapse:collapse; font-size:12px; }
+    thead th{
+        text-align:left; font-size:11px; font-weight:700; color:var(--muted);
+        text-transform:uppercase; letter-spacing:.03em; padding:10px 12px; border-bottom:2px solid var(--border);
+    }
+    tbody td{ padding:11px 12px; border-bottom:1px solid #F1F5F9; font-weight:500; }
+    tbody tr:last-child td{ border-bottom:none; }
+    tbody tr:hover{ background:#FAFBFF; }
+    .num{ text-align:right; }
+    .strong{ font-weight:800; color:var(--text); }
+    .badge{ display:inline-block; padding:3px 10px; border-radius:999px; font-weight:700; font-size:11px; }
+
+    .footer{ text-align:center; margin-top:28px; color:var(--muted); font-size:11px; }
+    .print-btn{
+        position:fixed; top:20px; right:20px; z-index:10;
+        background:var(--text); color:#fff; border:none; padding:12px 20px; border-radius:14px;
+        font-family:inherit; font-weight:700; font-size:12px; cursor:pointer; box-shadow:0 10px 20px -8px rgba(0,0,0,.3);
+    }
+    @media (max-width:640px){ .stats{ grid-template-columns:repeat(2,1fr); } }
+    @media print{ .print-btn{ display:none; } body{ background:#fff; padding:0; } .card,.hero{ box-shadow:none; } }
+<\/style>
+<\/head>
+<body>
+    <button class="print-btn" onclick="window.print()"><i class="fa-solid fa-print"></i>&nbsp; Cetak / Simpan PDF</button>
+    <div class="sheet">
+        <div class="hero">
+            <div class="hero-top">
+                <div class="hero-logo"><i class="fa-solid fa-jug-detergent"></i></div>
+                <div>
+                    <h1>Hotel Laundry</h1>
+                    <p>Smart Laundry Management</p>
+                </div>
+            </div>
+            <h2>Total Pendapatan, ${report.monthLabel}</h2>
+            <p class="amount">${formatRp(report.totalRp)}</p>
+            <p class="period"><i class="fa-solid fa-calendar-days"></i>&nbsp; Laporan Bulanan &nbsp;&middot;&nbsp; ${report.monthLabel}</p>
+        </div>
+
+        <div class="stats">
+            <div class="stat"><p class="n" style="color:#4338CA">${report.count}</p><p class="l">Total Order</p></div>
+            <div class="stat"><p class="n" style="color:#0F766E">${formatWeightDisplay(Math.round(report.totalKg * 10) / 10)}</p><p class="l">Kg Tercuci</p></div>
+            <div class="stat"><p class="n" style="color:#C2410C">${report.expressN}</p><p class="l">Express</p></div>
+            <div class="stat"><p class="n" style="color:#4338CA">${report.regularN}</p><p class="l">Reguler</p></div>
+        </div>
+
+        <div class="card">
+            <h3><i class="fa-solid fa-calendar-days"></i> Ringkasan per Tanggal</h3>
+            ${report.dayKeys.length === 0 ? '<p style="font-size:12px;color:var(--muted)">Tidak ada order pada bulan ini.</p>' : `
+            <table>
+                <thead><tr><th>Tanggal</th><th class="num">Order</th><th class="num">Berat</th><th class="num">Pendapatan</th></tr></thead>
+                <tbody>${dayRows}</tbody>
+            </table>`}
+        </div>
+
+        <div class="card">
+            <h3><i class="fa-solid fa-list-ul"></i> Detail Order</h3>
+            ${orderRows === '' ? '<p style="font-size:12px;color:var(--muted)">Tidak ada order pada bulan ini.</p>' : `
+            <table>
+                <thead><tr><th>ID</th><th>Tanggal</th><th>Kamar</th><th>Tamu</th><th>Layanan</th><th class="num">Berat</th><th>Status</th><th class="num">Total</th></tr></thead>
+                <tbody>${orderRows}</tbody>
+            </table>`}
+        </div>
+
+        <p class="footer">Dibuat otomatis oleh Hotel Laundry - Smart Laundry Management &nbsp;&middot;&nbsp; ${generatedAt}</p>
+    </div>
+<\/body>
+<\/html>`;
+
+        const blob = new Blob([html], { type: 'text/html;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `laporan-laundry-${reportMonth}.html`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        showToast('Laporan berhasil diunduh, buka filenya untuk melihat tampilannya.', 'success');
+    }
+</script>
+</body>
+</html>
