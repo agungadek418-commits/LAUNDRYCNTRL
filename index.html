@@ -774,6 +774,33 @@
         if (currentScreen === 'settings') navigateTo('settings');
     }
 
+    function openNameModal(targetId, fromStaffList = false) {
+        const target = getStaff().find(x => x.id === targetId);
+        const self = !!currentStaff && currentStaff.id === targetId;
+        if (!target || !currentStaff || (!self && !isAdmin())) return;
+        authModalShell('Ganti Nama', escapeHtml(target.id) + ' • ' + (target.role === 'admin' ? 'Admin' : 'Staf'),
+            authField('nameNew', 'Nama baru', 'text', 'Nama lengkap', `value="${escapeHtml(target.name)}" maxlength="40" autocomplete="name"`) +
+            AUTH_ERR +
+            `<button onclick="submitNameChange('${escapeHtml(targetId)}', ${fromStaffList})" class="w-full py-3.5 bg-gradient-brand text-white font-bold text-sm rounded-2xl shadow-glow">Simpan Nama</button>`);
+    }
+
+    function submitNameChange(targetId, fromStaffList) {
+        const name = authVal('nameNew').trim().replace(/\s+/g, ' ');
+        if (name.length < 2) return authError('Nama minimal 2 karakter.');
+        const list = getStaff();
+        const t = list.find(x => x.id === targetId);
+        const self = !!currentStaff && currentStaff.id === targetId;
+        if (!t || !currentStaff || (!self && !isAdmin())) return;
+        if (t.name !== name) {
+            t.name = name;
+            saveStaff(list);
+            if (self) currentStaff = loadSession();
+            showToast('Nama diperbarui menjadi ' + escapeHtml(name) + '.', 'success');
+        }
+        if (fromStaffList && isAdmin()) openStaffModal(); else closeModal();
+        if (['settings', 'home'].includes(currentScreen)) navigateTo(currentScreen, currentParams);
+    }
+
     function openStaffModal() {
         if (!isAdmin()) return;
         const rows = getStaff().map(m => {
@@ -783,6 +810,7 @@
                     <p class="text-sm font-bold text-slate-800 truncate">${escapeHtml(m.name)}${me ? ' <span class="text-[10px] text-indigo-500 font-bold">(Anda)</span>' : ''}</p>
                     <p class="text-[11px] text-slate-400">${escapeHtml(m.id)} • ${m.role === 'admin' ? 'Admin' : 'Staf'}${m.mustChange ? ' • wajib ganti sandi' : ''}</p>
                 </div>
+                <button onclick="openNameModal('${escapeHtml(m.id)}', true)" aria-label="Ganti nama" class="w-9 h-9 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center text-xs"><i class="fa-solid fa-pen"></i></button>
                 <button onclick="openPasswordModal('${escapeHtml(m.id)}')" aria-label="Atur ulang kata sandi" class="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-xs"><i class="fa-solid fa-key"></i></button>
                 ${me ? '' : `<button onclick="deleteStaff('${escapeHtml(m.id)}')" aria-label="Hapus staf" class="w-9 h-9 rounded-xl bg-red-50 text-red-500 flex items-center justify-center text-xs"><i class="fa-solid fa-trash-can"></i></button>`}
             </div>`;
@@ -843,10 +871,11 @@
                     ${getSyncCfg().url ? `<button onclick="syncNow(true).then(() => currentScreen === 'settings' && navigateTo('settings'))" class="shrink-0 font-bold text-indigo-600">Sinkronkan</button>` : ''}
                 </div>
                 <div class="grid grid-cols-2 gap-2">
+                    <button onclick="openNameModal('${escapeHtml(currentStaff.id)}')" class="py-3 rounded-2xl bg-indigo-50 text-indigo-600 font-bold text-xs"><i class="fa-solid fa-pen"></i>&nbsp; Ganti Nama</button>
                     <button onclick="openPasswordModal('${escapeHtml(currentStaff.id)}', ${currentStaff.mustChange ? 'true' : 'false'})" class="py-3 rounded-2xl bg-indigo-50 text-indigo-600 font-bold text-xs"><i class="fa-solid fa-key"></i>&nbsp; Ganti Kata Sandi</button>
-                    <button onclick="logout()" class="py-3 rounded-2xl bg-red-50 text-red-500 font-bold text-xs"><i class="fa-solid fa-right-from-bracket"></i>&nbsp; Keluar</button>
                     ${isAdmin() ? `<button onclick="openStaffModal()" class="py-3 rounded-2xl bg-slate-100 text-slate-700 font-bold text-xs"><i class="fa-solid fa-users-gear"></i>&nbsp; Kelola Staf</button>
                     <button onclick="openSyncModal()" class="py-3 rounded-2xl bg-slate-100 text-slate-700 font-bold text-xs"><i class="fa-solid fa-cloud"></i>&nbsp; Sinkronisasi</button>` : ''}
+                    <button onclick="logout()" class="col-span-2 py-3 rounded-2xl bg-red-50 text-red-500 font-bold text-xs"><i class="fa-solid fa-right-from-bracket"></i>&nbsp; Keluar</button>
                 </div>
             </div>`;
     }
@@ -969,7 +998,7 @@
         const c = getSyncCfg();
         authModalShell('Sinkronisasi Data', 'Samakan data order dan staf di semua HP',
             `<p class="text-xs text-slate-500">${escapeHtml(syncStatusText())}</p>` +
-            authField('syncUrl', 'URL Web App', 'url', 'https://script.googleusercontent.com/macros/echo?user_content_key=AUkAhnS-vbbnWd6hJpAvqc9jOHd6Z5fmWwXIsmL8qL3OzMGEpa821wvTHxyBVOXzKys_B2nWkYhbnfM1lHpsvlsjgiIPgzBg6pOdpTxnKc5KQf8wtsXMLYh6-C8aSwG545BplvdNikWoAE0bVv2Q19SFfig5t3h5TxioMmxMHx9UUYgOHs-oaIWarBZIzAmR9dSIb68slRBuX5RLmYGgh2B43QM_lwc2DsZLT3Uhjz1lZ0YV4MnLhSY3ytJ4Q_7A6FrmOIbj4Gs4P0WxmREX39SrT0ati1aP6w&lib=MT82NPlZKmAxKOe7cR_hvrZjIdsifmOXq', `value="${escapeHtml(c.url || DEFAULT_SYNC_URL)}"`) +
+            authField('syncUrl', 'URL Web App', 'url', 'https://script.google.com/macros/s/AKfycbxD0Zb86RPhjd98lnW1tSJXHO_t5f_alDTjMUOgobchNVrt0z2Od9MVYJu4BrwB0_2nqQ/exec', `value="${escapeHtml(c.url || DEFAULT_SYNC_URL)}"`) +
             authField('syncKey', 'Kunci rahasia', 'password', 'CENTRAL2026', `value="${escapeHtml(c.key || '')}" autocomplete="off"`) +
             AUTH_ERR +
             `<button id="syncSaveBtn" onclick="saveSyncConfig()" class="disabled:opacity-60 w-full py-3.5 bg-gradient-brand text-white font-bold text-sm rounded-2xl shadow-glow">Simpan & Sinkronkan</button>` +
