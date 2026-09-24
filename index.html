@@ -433,7 +433,7 @@
     const ROOM_LIST = [
         '101', '102', '103', '104', '105', '106',
         '201', '202', '203', '204', '205', '206',
-        '301', '302', '303'
+        '301', '302', '303', '304', '305', '306'
     ];
 
     // Mulai dari nol: tidak ada lagi data contoh. Format lama (berbasis "items") juga dikosongkan.
@@ -641,7 +641,7 @@
         if (getStaff().length) return;
         const salt = randomSalt();
         localStorage.setItem('hl_staff', JSON.stringify([{
-            id: 'STF-8820', name: 'Admin Housekeeping', role: 'admin',
+            id: 'FO-1026', name: 'Admin Front Office', role: 'admin',
             salt, hash: await hashSecret(DEFAULT_PASSWORD, salt),
             mustChange: true, createdAt: new Date().toISOString()
         }]));
@@ -669,6 +669,15 @@
     function readLoginFail() {
         try { return JSON.parse(localStorage.getItem('hl_login_fail') || '{}'); } catch (e) { return {}; }
     }
+    // Login boleh memakai ID staf ATAU username (tidak peka huruf besar/kecil)
+    function findStaffByLogin(input) {
+        const q = String(input || '').trim().toLowerCase();
+        if (!q) return null;
+        const list = getStaff();
+        return list.find(x => x.id.toLowerCase() === q)
+            || list.find(x => x.username && x.username.toLowerCase() === q)
+            || null;
+    }
     function loginLockRemaining() {
         const f = readLoginFail();
         return f.until && f.until > Date.now() ? Math.ceil((f.until - Date.now()) / 1000) : 0;
@@ -690,12 +699,12 @@
         const wait = loginLockRemaining();
         if (wait > 0) { showErr('Terlalu banyak percobaan gagal. Coba lagi dalam ' + wait + ' detik.'); return; }
 
-        const id = document.getElementById('loginIdInput').value.trim().toUpperCase();
+        const loginInput = document.getElementById('loginIdInput').value;
         const pw = document.getElementById('loginPasswordInput').value;
         btn.disabled = true;
         // Ambil daftar staf terbaru dari server (maks. 4 detik) sebelum memeriksa login
         if (getSyncCfg().url) await Promise.race([syncNow(), new Promise(r => setTimeout(r, 4000))]);
-        const staff = getStaff().find(x => x.id.toUpperCase() === id);
+        const staff = findStaffByLogin(loginInput);
         const hash = await hashSecret(pw, staff ? staff.salt : 'none');
         btn.disabled = false;
 
@@ -778,24 +787,32 @@
         const target = getStaff().find(x => x.id === targetId);
         const self = !!currentStaff && currentStaff.id === targetId;
         if (!target || !currentStaff || (!self && !isAdmin())) return;
-        authModalShell('Ganti Nama', escapeHtml(target.id) + ' • ' + (target.role === 'admin' ? 'Admin' : 'Staf'),
-            authField('nameNew', 'Nama baru', 'text', 'Nama lengkap', `value="${escapeHtml(target.name)}" maxlength="40" autocomplete="name"`) +
+        authModalShell('Nama & Username', escapeHtml(target.id) + ' • ' + (target.role === 'admin' ? 'Admin' : 'Staf'),
+            authField('nameNew', 'Nama', 'text', 'Nama lengkap', `value="${escapeHtml(target.name)}" maxlength="40" autocomplete="name"`) +
+            authField('userNew', 'Username (opsional)', 'text', 'Contoh: agung', `value="${escapeHtml(target.username || '')}" maxlength="20" autocapitalize="none" autocorrect="off"`) +
+            '<p class="text-[11px] text-slate-400 -mt-2">Bisa dipakai untuk login selain ID staf. 3-20 karakter: huruf, angka, titik, garis bawah, atau tanda hubung. Kosongkan untuk menghapus.</p>' +
             AUTH_ERR +
-            `<button onclick="submitNameChange('${escapeHtml(targetId)}', ${fromStaffList})" class="w-full py-3.5 bg-gradient-brand text-white font-bold text-sm rounded-2xl shadow-glow">Simpan Nama</button>`);
+            `<button onclick="submitNameChange('${escapeHtml(targetId)}', ${fromStaffList})" class="w-full py-3.5 bg-gradient-brand text-white font-bold text-sm rounded-2xl shadow-glow">Simpan</button>`);
     }
 
     function submitNameChange(targetId, fromStaffList) {
         const name = authVal('nameNew').trim().replace(/\s+/g, ' ');
+        const username = authVal('userNew').trim().toLowerCase();
         if (name.length < 2) return authError('Nama minimal 2 karakter.');
         const list = getStaff();
         const t = list.find(x => x.id === targetId);
         const self = !!currentStaff && currentStaff.id === targetId;
         if (!t || !currentStaff || (!self && !isAdmin())) return;
-        if (t.name !== name) {
+        if (username) {
+            if (!/^[a-z0-9._-]{3,20}$/.test(username)) return authError('Username 3-20 karakter: huruf, angka, titik, garis bawah, atau tanda hubung.');
+            if (list.some(m => m.id !== targetId && (m.id.toLowerCase() === username || (m.username || '').toLowerCase() === username))) return authError('Username sudah dipakai akun lain.');
+        }
+        if (t.name !== name || (t.username || '') !== username) {
             t.name = name;
+            if (username) t.username = username; else delete t.username;
             saveStaff(list);
             if (self) currentStaff = loadSession();
-            showToast('Nama diperbarui menjadi ' + escapeHtml(name) + '.', 'success');
+            showToast('Profil diperbarui.', 'success');
         }
         if (fromStaffList && isAdmin()) openStaffModal(); else closeModal();
         if (['settings', 'home'].includes(currentScreen)) navigateTo(currentScreen, currentParams);
@@ -808,9 +825,9 @@
             return `<div class="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-100">
                 <div class="min-w-0 flex-1">
                     <p class="text-sm font-bold text-slate-800 truncate">${escapeHtml(m.name)}${me ? ' <span class="text-[10px] text-indigo-500 font-bold">(Anda)</span>' : ''}</p>
-                    <p class="text-[11px] text-slate-400">${escapeHtml(m.id)} • ${m.role === 'admin' ? 'Admin' : 'Staf'}${m.mustChange ? ' • wajib ganti sandi' : ''}</p>
+                    <p class="text-[11px] text-slate-400">${escapeHtml(m.id)}${m.username ? ' (@' + escapeHtml(m.username) + ')' : ''} • ${m.role === 'admin' ? 'Admin' : 'Staf'}${m.mustChange ? ' • wajib ganti sandi' : ''}</p>
                 </div>
-                <button onclick="openNameModal('${escapeHtml(m.id)}', true)" aria-label="Ganti nama" class="w-9 h-9 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center text-xs"><i class="fa-solid fa-pen"></i></button>
+                <button onclick="openNameModal('${escapeHtml(m.id)}', true)" aria-label="Ubah nama dan username" class="w-9 h-9 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center text-xs"><i class="fa-solid fa-pen"></i></button>
                 <button onclick="openPasswordModal('${escapeHtml(m.id)}')" aria-label="Atur ulang kata sandi" class="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-xs"><i class="fa-solid fa-key"></i></button>
                 ${me ? '' : `<button onclick="deleteStaff('${escapeHtml(m.id)}')" aria-label="Hapus staf" class="w-9 h-9 rounded-xl bg-red-50 text-red-500 flex items-center justify-center text-xs"><i class="fa-solid fa-trash-can"></i></button>`}
             </div>`;
@@ -821,6 +838,7 @@
                 <h4 class="text-xs font-extrabold text-slate-700">Tambah staf baru</h4>
                 ${authField('stfId', 'ID Staf', 'text', 'Contoh: STF-1001', 'autocapitalize="characters"')}
                 ${authField('stfName', 'Nama', 'text', 'Nama lengkap')}
+                ${authField('stfUser', 'Username (opsional)', 'text', 'Contoh: agung', 'maxlength="20" autocapitalize="none" autocorrect="off"')}
                 ${authField('stfPw', 'Kata sandi awal', 'text', 'Minimal 6 karakter (staf wajib menggantinya)')}
                 <div><label class="block text-xs font-bold text-slate-600 uppercase mb-1">Peran</label>
                     <select id="stfRole" class="${AUTH_INPUT}"><option value="staff">Staf</option><option value="admin">Admin</option></select></div>
@@ -831,14 +849,18 @@
 
     async function addStaff() {
         if (!isAdmin()) return;
-        const id = authVal('stfId').trim().toUpperCase(), name = authVal('stfName').trim(), pw = authVal('stfPw'), role = authVal('stfRole') === 'admin' ? 'admin' : 'staff';
+        const id = authVal('stfId').trim().toUpperCase(), name = authVal('stfName').trim(), pw = authVal('stfPw'), role = authVal('stfRole') === 'admin' ? 'admin' : 'staff', username = authVal('stfUser').trim().toLowerCase();
         const list = getStaff();
         if (!/^[A-Z0-9-]{3,20}$/.test(id)) return authError('ID staf 3-20 karakter: huruf, angka, atau tanda hubung.');
-        if (list.some(m => m.id.toUpperCase() === id)) return authError('ID staf sudah dipakai.');
+        if (list.some(m => m.id.toUpperCase() === id || (m.username || '').toLowerCase() === id.toLowerCase())) return authError('ID staf sudah dipakai.');
         if (!name) return authError('Nama wajib diisi.');
+        if (username) {
+            if (!/^[a-z0-9._-]{3,20}$/.test(username)) return authError('Username 3-20 karakter: huruf, angka, titik, garis bawah, atau tanda hubung.');
+            if (list.some(m => m.id.toLowerCase() === username || (m.username || '').toLowerCase() === username)) return authError('Username sudah dipakai.');
+        }
         if (pw.length < 6) return authError('Kata sandi awal minimal 6 karakter.');
         const salt = randomSalt();
-        list.push({ id, name, role, salt, hash: await hashSecret(pw, salt), mustChange: true, createdAt: new Date().toISOString() });
+        list.push({ id, name, ...(username ? { username } : {}), role, salt, hash: await hashSecret(pw, salt), mustChange: true, createdAt: new Date().toISOString() });
         saveStaff(list);
         showToast('Staf ' + escapeHtml(name) + ' ditambahkan.', 'success');
         openStaffModal();
@@ -862,7 +884,7 @@
                     <span class="w-11 h-11 shrink-0 rounded-2xl bg-gradient-brand text-white flex items-center justify-center font-extrabold">${initial}</span>
                     <div class="min-w-0">
                         <h3 class="text-sm font-extrabold text-slate-800 truncate">${escapeHtml(currentStaff.name)}</h3>
-                        <p class="text-[11px] text-slate-400">${escapeHtml(currentStaff.id)} • ${isAdmin() ? 'Admin' : 'Staf'}</p>
+                        <p class="text-[11px] text-slate-400">${escapeHtml(currentStaff.id)}${currentStaff.username ? ' (@' + escapeHtml(currentStaff.username) + ')' : ''} • ${isAdmin() ? 'Admin' : 'Staf'}</p>
                     </div>
                 </div>
                 ${currentStaff.mustChange ? `<div class="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">Kata sandi Anda masih bawaan. Ganti sekarang agar akun aman.</div>` : ''}
@@ -871,7 +893,7 @@
                     ${getSyncCfg().url ? `<button onclick="syncNow(true).then(() => currentScreen === 'settings' && navigateTo('settings'))" class="shrink-0 font-bold text-indigo-600">Sinkronkan</button>` : ''}
                 </div>
                 <div class="grid grid-cols-2 gap-2">
-                    <button onclick="openNameModal('${escapeHtml(currentStaff.id)}')" class="py-3 rounded-2xl bg-indigo-50 text-indigo-600 font-bold text-xs"><i class="fa-solid fa-pen"></i>&nbsp; Ganti Nama</button>
+                    <button onclick="openNameModal('${escapeHtml(currentStaff.id)}')" class="py-3 rounded-2xl bg-indigo-50 text-indigo-600 font-bold text-xs"><i class="fa-solid fa-pen"></i>&nbsp; Nama & Username</button>
                     <button onclick="openPasswordModal('${escapeHtml(currentStaff.id)}', ${currentStaff.mustChange ? 'true' : 'false'})" class="py-3 rounded-2xl bg-indigo-50 text-indigo-600 font-bold text-xs"><i class="fa-solid fa-key"></i>&nbsp; Ganti Kata Sandi</button>
                     ${isAdmin() ? `<button onclick="openStaffModal()" class="py-3 rounded-2xl bg-slate-100 text-slate-700 font-bold text-xs"><i class="fa-solid fa-users-gear"></i>&nbsp; Kelola Staf</button>
                     <button onclick="openSyncModal()" class="py-3 rounded-2xl bg-slate-100 text-slate-700 font-bold text-xs"><i class="fa-solid fa-cloud"></i>&nbsp; Sinkronisasi</button>` : ''}
@@ -998,7 +1020,7 @@
         const c = getSyncCfg();
         authModalShell('Sinkronisasi Data', 'Samakan data order dan staf di semua HP',
             `<p class="text-xs text-slate-500">${escapeHtml(syncStatusText())}</p>` +
-            authField('syncUrl', 'URL Web App', 'url', 'https://script.google.com/macros/s/AKfycbxD0Zb86RPhjd98lnW1tSJXHO_t5f_alDTjMUOgobchNVrt0z2Od9MVYJu4BrwB0_2nqQ/exec', `value="${escapeHtml(c.url || DEFAULT_SYNC_URL)}"`) +
+            authField('syncUrl', 'URL Web App', 'url', 'https://script.google.com/macros/s/.../exec', `value="${escapeHtml(c.url || DEFAULT_SYNC_URL)}"`) +
             authField('syncKey', 'Kunci rahasia', 'password', 'CENTRAL2026', `value="${escapeHtml(c.key || '')}" autocomplete="off"`) +
             AUTH_ERR +
             `<button id="syncSaveBtn" onclick="saveSyncConfig()" class="disabled:opacity-60 w-full py-3.5 bg-gradient-brand text-white font-bold text-sm rounded-2xl shadow-glow">Simpan & Sinkronkan</button>` +
@@ -1135,12 +1157,12 @@
 
                     <form onsubmit="handleLogin(event)" class="space-y-4">
                         <div>
-                            <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">ID Staf</label>
+                            <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">ID Staf atau Username</label>
                             <div class="relative">
                                 <span class="absolute inset-y-0 left-0 pl-4 flex items-center text-indigo-400">
                                     <i class="fa-solid fa-id-badge"></i>
                                 </span>
-                                <input id="loginIdInput" type="text" autocomplete="username" autocapitalize="characters" placeholder="Contoh: STF-8820" required class="w-full pl-11 pr-4 py-3.5 bg-white border border-slate-200 rounded-2xl text-slate-800 font-semibold focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 shadow-soft transition-all text-sm">
+                                <input id="loginIdInput" type="text" autocomplete="username" autocapitalize="none" autocorrect="off" placeholder="ID staf atau username" required class="w-full pl-11 pr-4 py-3.5 bg-white border border-slate-200 rounded-2xl text-slate-800 font-semibold focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 shadow-soft transition-all text-sm">
                             </div>
                         </div>
 
