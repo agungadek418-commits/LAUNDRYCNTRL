@@ -83,6 +83,87 @@
         }
         .animate-slide-up { animation: slideUp .25s ease-out; }
 
+        /* Badge peringatan order yang nyangkut lama di satu status */
+        @keyframes stuckPulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,.45); }
+            50%      { box-shadow: 0 0 0 5px rgba(239,68,68,0); }
+        }
+        .stuck-badge {
+            display: inline-flex; align-items: center; gap: 4px;
+            font-size: 10px; font-weight: 800; line-height: 1;
+            padding: 4px 8px; border-radius: 999px;
+            background: #FEF2F2; color: #DC2626; border: 1px solid #FECACA;
+            animation: stuckPulse 1.8s ease-out infinite;
+            white-space: nowrap;
+        }
+        .stuck-dot {
+            position: absolute; top: -4px; right: -4px;
+            width: 14px; height: 14px; border-radius: 50%;
+            background: #EF4444; border: 2px solid #fff;
+            animation: stuckPulse 1.8s ease-out infinite;
+        }
+
+        /* Dropdown custom pengganti tampilan default browser */
+        .app-select {
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%236366F1' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 8l5 5 5-5'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 0.85rem center;
+            background-size: 13px;
+            padding-right: 2.4rem !important;
+            cursor: pointer;
+            transition: border-color .15s ease, box-shadow .15s ease, background-color .15s ease;
+        }
+        .app-select:hover {
+            border-color: #C7D2FE;
+            background-color: #fff;
+        }
+        .app-select:focus {
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, .15);
+        }
+        .app-select option {
+            font-weight: 600;
+            color: #1E293B;
+        }
+
+        /* Dropdown custom sepenuhnya (bukan <select> bawaan browser) */
+        .custom-select-panel {
+            position: absolute; top: calc(100% + 8px); right: 0; z-index: 60;
+            min-width: 200px; max-height: 280px; overflow-y: auto;
+            background: #fff; border-radius: 1rem; border: 1px solid #E2E8F0;
+            box-shadow: 0 20px 40px -12px rgba(79, 70, 229, .28), 0 4px 12px -4px rgba(0,0,0,.05);
+            padding: 6px;
+            animation: slideUp .15s ease-out;
+        }
+        .custom-select-panel.hidden { display: none; }
+        .custom-select-option {
+            display: block; width: 100%; text-align: left;
+            padding: .6rem .8rem; border-radius: .7rem;
+            font-size: .75rem; font-weight: 700; color: #334155;
+            transition: background-color .12s ease, color .12s ease;
+        }
+        .custom-select-option:hover { background: #EEF2FF; color: #4338CA; }
+        .custom-select-option.active {
+            background: linear-gradient(135deg, #3B82F6 0%, #6366F1 100%);
+            color: #fff;
+            box-shadow: 0 6px 14px -6px rgba(99,102,241,.6);
+        }
+        .custom-select.open .custom-select-caret { transform: rotate(180deg); }
+        .custom-select-caret { transition: transform .15s ease; }
+
+        /* Toggle segmented Staf/Admin (pengganti dropdown 2 pilihan) */
+        .role-toggle-btn {
+            padding: .55rem 0; border-radius: .65rem;
+            font-size: .75rem; font-weight: 800; color: #64748B;
+            transition: background-color .15s ease, color .15s ease, box-shadow .15s ease;
+        }
+        .role-toggle-btn.active {
+            background: #fff; color: #4338CA;
+            box-shadow: 0 4px 10px -4px rgba(79,70,229,.35);
+        }
+
         /* ===== LAYOUT ADAPTIF =====
            < 640px   : layar penuh + bottom nav
            640-1023  : layar penuh + bottom nav melayang, konten grid 2-4 kolom
@@ -430,6 +511,12 @@
         express: 60000
     };
 
+    // Estimasi lama pengerjaan per jenis layanan (jam), dipakai untuk struk serah terima.
+    const SLA_HOURS = {
+        regular: 24,
+        express: 6
+    };
+
     const ROOM_LIST = [
         '101', '102', '103', '104', '105', '106',
         '201', '202', '203', '204', '205', '206',
@@ -495,7 +582,7 @@
         room: '101',
         guestName: '',
         service: 'regular',
-        weightKg: 1.5,
+        weightKg: 0,
         guestRequest: '',
         photoBefore: null,
         photoAfter: null
@@ -508,6 +595,30 @@
         navigateTo(currentStaff ? 'home' : 'welcome');
         startAutoSync();
         syncNow();
+        if (currentStaff) checkAutoBackup();
+    });
+
+    // ==========================================
+    // CUSTOM DROPDOWN (pengganti <select> bawaan browser)
+    // ==========================================
+    function toggleCustomSelect(id) {
+        document.querySelectorAll('.custom-select').forEach(el => {
+            if (el.id !== id) { el.classList.remove('open'); el.querySelector('.custom-select-panel')?.classList.add('hidden'); }
+        });
+        const wrap = document.getElementById(id);
+        if (!wrap) return;
+        const panel = wrap.querySelector('.custom-select-panel');
+        const willOpen = panel.classList.contains('hidden');
+        panel.classList.toggle('hidden', !willOpen);
+        wrap.classList.toggle('open', willOpen);
+    }
+
+    document.addEventListener('click', (e) => {
+        if (e.target.closest('.custom-select')) return;
+        document.querySelectorAll('.custom-select').forEach(el => {
+            el.classList.remove('open');
+            el.querySelector('.custom-select-panel')?.classList.add('hidden');
+        });
     });
 
     function navigateTo(screenId, params = null) {
@@ -586,6 +697,12 @@
     function formatWeightDisplay(weight) {
         if (weight === undefined || weight === null || isNaN(weight)) return '0';
         return weight.toString().replace('.', ',');
+    }
+
+    // Order dianggap "sudah ditimbang" kalau beratnya > 0.
+    // Sebelum ditimbang (baru Received/Processing), berat & harga belum final.
+    function isWeighed(order) {
+        return !!(order && parseFloat(order.weightKg) > 0);
     }
 
     function calculateOrderTotals(weightKg, serviceType) {
@@ -841,10 +958,23 @@
                 ${authField('stfUser', 'Username (opsional)', 'text', 'Contoh: agung', 'maxlength="20" autocapitalize="none" autocorrect="off"')}
                 ${authField('stfPw', 'Kata sandi awal', 'text', 'Minimal 6 karakter (staf wajib menggantinya)')}
                 <div><label class="block text-xs font-bold text-slate-600 uppercase mb-1">Peran</label>
-                    <select id="stfRole" class="${AUTH_INPUT}"><option value="staff">Staf</option><option value="admin">Admin</option></select></div>
+                    <input type="hidden" id="stfRole" value="staff">
+                    <div class="grid grid-cols-2 gap-2 bg-slate-100 p-1 rounded-xl">
+                        <button type="button" onclick="setStfRole('staff')" id="stfRoleBtn-staff" class="role-toggle-btn active">Staf</button>
+                        <button type="button" onclick="setStfRole('admin')" id="stfRoleBtn-admin" class="role-toggle-btn">Admin</button>
+                    </div>
+                </div>
                 ${AUTH_ERR}
                 <button onclick="addStaff()" class="w-full py-3.5 bg-gradient-brand text-white font-bold text-sm rounded-2xl shadow-glow">Tambah Staf</button>
             </div>`);
+    }
+
+    function setStfRole(role) {
+        const input = document.getElementById('stfRole');
+        if (input) input.value = role;
+        ['staff', 'admin'].forEach(r => {
+            document.getElementById(`stfRoleBtn-${r}`)?.classList.toggle('active', r === role);
+        });
     }
 
     async function addStaff() {
@@ -1244,12 +1374,12 @@
                             ${o.service === 'express' ? '<i class="fa-solid fa-bolt text-[11px] text-amber-500"></i>' : ''}
                         </div>
                         <p class="text-[11px] font-semibold mt-0.5" style="color:${st.color}">${o.status}
-                            <span class="text-slate-400 font-medium">${formatWeightDisplay(o.weightKg)} Kg, ${timeAgo(o.createdAt)}</span></p>
+                            <span class="text-slate-400 font-medium">${isWeighed(o) ? formatWeightDisplay(o.weightKg) + ' Kg' : 'Belum ditimbang'}, ${timeAgo(o.createdAt)}</span></p>
                         <div class="flex gap-1 mt-1.5">
                             ${STEPS.map((_, k) => `<span class="h-1 flex-1 rounded-full" style="background:${k <= step ? st.color : '#E2E8F0'}"></span>`).join('')}
                         </div>
                     </div>
-                    <p class="shrink-0 text-xs font-extrabold text-slate-800">${formatRp(totalPrice)}</p>
+                    <p class="shrink-0 text-right max-w-[42%] break-all text-xs font-extrabold text-slate-800">${isWeighed(o) ? formatRp(totalPrice) : '-'}</p>
                 </div>`;
         };
 
@@ -1376,8 +1506,8 @@
                     </span>
                 </div>
                 <div class="flex justify-between items-center text-xs pt-2 border-t border-slate-50 mt-2 text-slate-500">
-                    <span><i class="fa-solid fa-weight-scale text-slate-400 mr-1"></i> ${formatWeightDisplay(order.weightKg)} Kg${showTime ? `<span class="text-slate-300 mx-1.5">•</span><i class="fa-regular fa-clock text-slate-400 mr-1"></i>${new Date(order.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}` : ''}</span>
-                    <span class="font-extrabold text-slate-800">${formatRp(totalPrice)}</span>
+                    <span><i class="fa-solid fa-weight-scale text-slate-400 mr-1"></i> ${isWeighed(order) ? formatWeightDisplay(order.weightKg) + ' Kg' : 'Belum ditimbang'}${showTime ? `<span class="text-slate-300 mx-1.5">•</span><i class="fa-regular fa-clock text-slate-400 mr-1"></i>${new Date(order.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}` : ''}</span>
+                    <span class="font-extrabold text-slate-800">${isWeighed(order) ? formatRp(totalPrice) : '-'}</span>
                 </div>
             </div>
         `;
@@ -1456,10 +1586,12 @@
                                         const st = STATUS[o.status] || STATUS.Processing;
                                         const step = Math.max(0, STEPS.indexOf(o.status));
                                         const isExpress = o.service === 'express';
+                                        const stuck = isOrderStuck(o);
                                         return `
                                             <button type="button" onclick="navigateTo('order-detail', '${o.id}')" style="${style};background:${st.grad};box-shadow:${st.shadow}"
-                                                    aria-label="Kamar ${roomNum}, ${o.service} ${o.status}, ${formatWeightDisplay(o.weightKg)} kilogram. Buka detail"
-                                                    class="room-card room-active">
+                                                    aria-label="Kamar ${roomNum}, ${o.service} ${o.status}, ${isWeighed(o) ? formatWeightDisplay(o.weightKg) + ' kilogram' : 'belum ditimbang'}${!o.paid ? ', belum bayar' : ''}${stuck ? ', sudah lama nyangkut di status ini' : ''}. Buka detail"
+                                                    class="room-card room-active relative">
+                                                ${stuck ? '<span class="stuck-dot" style="top:-6px;right:-6px"></span>' : ''}
                                                 <span class="flex items-start justify-between w-full">
                                                     <span class="text-2xl font-extrabold tracking-tight">${roomNum}</span>
                                                     <span class="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center text-xs">
@@ -1467,12 +1599,16 @@
                                                     </span>
                                                 </span>
                                                 <span class="block w-full">
-                                                    <span class="block text-lg font-extrabold leading-none">${formatWeightDisplay(o.weightKg)} <span class="text-[11px] font-semibold opacity-80">Kg</span></span>
+                                                    <span class="block ${isWeighed(o) ? 'text-lg' : 'text-xs'} font-extrabold leading-none">${isWeighed(o) ? formatWeightDisplay(o.weightKg) + ' <span class="text-[11px] font-semibold opacity-80">Kg</span>' : 'Belum ditimbang'}</span>
                                                     <span class="flex items-center gap-1.5 mt-2 text-[11px] font-semibold">
                                                         <span class="room-dot ${o.status === 'Processing' ? 'pulse' : ''}"></span>
                                                         ${o.status}
                                                         <span class="ml-auto px-1.5 py-0.5 rounded-md bg-black/15 text-[10px] font-bold">${isExpress ? 'Express' : 'Regular'}</span>
                                                     </span>
+                                                    ${!o.paid ? `
+                                                    <span class="inline-flex items-center gap-1 mt-2 px-1.5 py-0.5 rounded-md bg-red-500/90 text-white text-[10px] font-bold">
+                                                        <i class="fa-solid fa-circle-exclamation"></i> Belum Bayar
+                                                    </span>` : ''}
                                                     <span class="flex gap-1 mt-2.5" aria-hidden="true">
                                                         ${STEPS.map((_, i) => `<span class="h-1 flex-1 rounded-full ${i <= step ? 'bg-white' : 'bg-white/30'}"></span>`).join('')}
                                                     </span>
@@ -1499,7 +1635,7 @@
             guestName: '',
             guestPhone: '',
             service: 'regular',
-            weightKg: 1.5,
+            weightKg: 0,
             totalPakaian: '',
             guestRequest: '',
             photoBefore: null,
@@ -1634,11 +1770,12 @@
                             <span class="text-xs font-semibold text-indigo-600">${formatRp(rate)} / Kg</span>
                         </div>
                         <div class="relative">
-                            <input type="text" inputmode="decimal" id="weightInput" placeholder="1,5" value="${formatWeightDisplay(newOrderState.weightKg)}" 
+                            <input type="text" inputmode="decimal" id="weightInput" placeholder="Diisi nanti setelah ditimbang" value="${newOrderState.weightKg ? formatWeightDisplay(newOrderState.weightKg) : ''}" 
                                    oninput="updateWeightFromInput(this.value)" 
                                    class="w-full py-3.5 px-4 bg-slate-50 border border-slate-200 rounded-2xl text-slate-800 font-extrabold text-lg focus:bg-white focus:outline-none focus:border-indigo-500 shadow-sm">
                             <span class="absolute right-4 top-3.5 font-bold text-slate-400 text-sm">Kg</span>
                         </div>
+                        <p class="text-[11px] text-slate-400 font-medium mt-2 flex items-center gap-1.5"><i class="fa-solid fa-circle-info"></i> Opsional — boleh dikosongkan dulu. Baju baru ditimbang setelah selesai dicuci, nanti akan diminta lagi saat status diubah ke <strong class="text-slate-500">Ready</strong>.</p>
                         <!-- Quick Weight Presets -->
                         <div class="flex flex-wrap gap-2 mt-3">
                             <button type="button" onclick="setWeight(1)" class="px-3.5 py-1.5 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 text-slate-700 font-bold text-xs rounded-xl border border-slate-200 transition-all">1 Kg</button>
@@ -1705,11 +1842,11 @@
                         </div>
                         <div class="flex justify-between text-xs text-slate-600">
                             <span>Berat Laundry:</span>
-                            <span id="summaryWeight" class="font-bold text-slate-800">${formatWeightDisplay(newOrderState.weightKg)} Kg</span>
+                            <span id="summaryWeight" class="font-bold text-slate-800">${newOrderState.weightKg ? formatWeightDisplay(newOrderState.weightKg) + ' Kg' : 'Belum ditimbang'}</span>
                         </div>
                         <div class="flex justify-between items-center text-sm pt-2 border-t border-indigo-200/60 font-extrabold text-slate-900">
                             <span>Total Harga:</span>
-                            <span id="summaryTotal" class="text-xl text-indigo-600">${formatRp(totalPrice)}</span>
+                            <span id="summaryTotal" class="text-xl text-indigo-600">${newOrderState.weightKg ? formatRp(totalPrice) : 'Menunggu timbang'}</span>
                         </div>
                     </div>
 
@@ -1737,8 +1874,8 @@
         
         const summaryWeight = document.getElementById('summaryWeight');
         const summaryTotal = document.getElementById('summaryTotal');
-        if (summaryWeight) summaryWeight.innerText = formatWeightDisplay(newOrderState.weightKg) + ' Kg';
-        if (summaryTotal) summaryTotal.innerText = formatRp(total);
+        if (summaryWeight) summaryWeight.innerText = newOrderState.weightKg ? formatWeightDisplay(newOrderState.weightKg) + ' Kg' : 'Belum ditimbang';
+        if (summaryTotal) summaryTotal.innerText = newOrderState.weightKg ? formatRp(total) : 'Menunggu timbang';
     }
 
     function setWeight(kg) {
@@ -1792,8 +1929,8 @@
     }
 
     function saveNewLaundryOrder() {
-        if (!newOrderState.weightKg || newOrderState.weightKg <= 0) {
-            showToast('Masukkan berat laundry yang valid dalam Kg!', 'warn');
+        if (newOrderState.weightKg && newOrderState.weightKg < 0) {
+            showToast('Berat laundry tidak boleh minus!', 'warn');
             return;
         }
 
@@ -1822,7 +1959,8 @@
             status: 'Received',
             paid: false,
             createdBy: currentStaff ? currentStaff.id : '',
-            createdAt: buildOrderDateTime(newOrderState.orderDate)
+            createdAt: buildOrderDateTime(newOrderState.orderDate),
+            statusSince: new Date().toISOString()
         };
 
         orders.unshift(newOrderObj);
@@ -1905,6 +2043,13 @@
                     </div>
                 </div>
 
+                ${isOrderStuck(order) ? `
+                    <div class="flex items-center gap-3 bg-red-50 border border-red-200 rounded-2xl px-4 py-3">
+                        <span class="w-8 h-8 rounded-xl bg-red-500 text-white flex items-center justify-center shrink-0"><i class="fa-solid fa-triangle-exclamation text-xs"></i></span>
+                        <p class="text-xs font-bold text-red-700 leading-snug">Order ini sudah ${Math.floor(stuckHours(order))} jam di status <b>${order.status}</b>, lebih dari batas ${STUCK_THRESHOLD_HOURS} jam. Cek segera.</p>
+                    </div>
+                ` : ''}
+
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
                 <div class="space-y-6">
                 <!-- Info Card -->
@@ -1925,6 +2070,20 @@
                             <i class="fa-solid fa-shirt"></i> Total Pakaian: <strong class="text-white">${order.totalPakaian} pcs</strong>
                         </div>
                     ` : ''}
+                </div>
+
+                <!-- Struk Serah Terima -->
+                <div class="bg-white p-5 rounded-3xl shadow-soft border border-slate-100">
+                    <h4 class="text-xs font-bold uppercase text-slate-400 mb-1 tracking-wider">Struk Serah Terima</h4>
+                    <p class="text-[11px] text-slate-400 mb-3 leading-snug">Bukti serah terima untuk tamu — berisi jumlah pakaian, berat, dan estimasi selesai. Biar tamu tidak perlu tanya-tanya ke resepsionis.</p>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="openReceiptLangModal('${order.id}', 'print')" class="py-3 bg-slate-800 text-white font-bold text-xs rounded-xl shadow-sm hover:bg-slate-900 flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-print"></i> Cetak Struk
+                        </button>
+                        <button onclick="openReceiptLangModal('${order.id}', 'wa')" class="py-3 bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-sm hover:bg-emerald-600 flex items-center justify-center gap-2">
+                            <i class="fa-brands fa-whatsapp text-sm"></i> Kirim Foto Struk WA
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Visual Stepper -->
@@ -1949,11 +2108,17 @@
                     </div>
 
                     <div class="mt-6 pt-4 border-t border-slate-100 flex gap-2">
-                        ${currentStepIdx < steps.length - 1 ? `
+                        ${currentStepIdx < steps.length - 1 ? (
+                            steps[currentStepIdx + 1] === 'Ready' && !isWeighed(order) ? `
+                            <button onclick="openWeighModal('${order.id}')" class="w-full py-3 bg-gradient-brand text-white font-bold text-xs rounded-xl shadow-glow hover:opacity-95 flex items-center justify-center gap-2">
+                                <i class="fa-solid fa-weight-scale"></i> Timbang & Tandai Ready
+                            </button>
+                            ` : `
                             <button onclick="advanceOrderStatus('${order.id}', '${steps[currentStepIdx + 1]}')" class="w-full py-3 bg-gradient-brand text-white font-bold text-xs rounded-xl shadow-glow hover:opacity-95">
                                 Perbarui Status Ke: ${steps[currentStepIdx + 1]}
                             </button>
-                        ` : `
+                            `
+                        ) : `
                             <div class="w-full py-2.5 bg-emerald-50 text-emerald-600 font-bold text-xs rounded-xl text-center border border-emerald-200 flex items-center justify-center gap-1.5">
                                 ${svgIcon('checkCircle', 'w-4 h-4')} Pesanan Telah Selesai & Diantar
                             </div>
@@ -1981,13 +2146,20 @@
                 <div class="bg-white p-5 rounded-3xl shadow-soft border border-slate-100 space-y-3">
                     <div class="flex justify-between items-center border-b border-slate-100 pb-2">
                         <h4 class="text-xs font-bold uppercase text-slate-400">Rincian Perhitungan Tarif</h4>
-                        <span class="text-xs font-extrabold text-indigo-600">${formatRp(totalPrice)}</span>
+                        <span class="text-xs font-extrabold text-indigo-600">${isWeighed(order) ? formatRp(totalPrice) : 'Menunggu timbang'}</span>
                     </div>
+
+                    ${!isWeighed(order) ? `
+                        <div class="flex items-start gap-2 text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-xl p-2.5">
+                            <i class="fa-solid fa-scale-unbalanced mt-0.5"></i>
+                            <span>Berat & total biaya baru muncul setelah laundry ditimbang (saat status diubah ke <strong>Ready</strong>).</span>
+                        </div>
+                    ` : ''}
 
                     <div class="space-y-2 text-xs text-slate-700">
                         <div class="flex justify-between items-center py-1">
                             <span>Berat Laundry</span>
-                            <span class="font-bold text-slate-900">${formatWeightDisplay(order.weightKg)} Kg</span>
+                            <span class="font-bold text-slate-900">${isWeighed(order) ? formatWeightDisplay(order.weightKg) + ' Kg' : 'Belum ditimbang'}</span>
                         </div>
                         <div class="flex justify-between items-center py-1">
                             <span>Tarif Layanan (${order.service.toUpperCase()})</span>
@@ -1995,7 +2167,7 @@
                         </div>
                         <div class="flex justify-between items-center gap-3 py-1 pt-2 border-t border-slate-100 font-bold text-slate-900">
                             <span>Total Biaya</span>
-                            <span class="text-indigo-600 font-extrabold text-right">${formatWeightDisplay(order.weightKg)} Kg × ${formatRp(rate)} = ${formatRp(totalPrice)}</span>
+                            <span class="text-indigo-600 font-extrabold text-right">${isWeighed(order) ? `${formatWeightDisplay(order.weightKg)} Kg × ${formatRp(rate)} = ${formatRp(totalPrice)}` : 'Menunggu timbang'}</span>
                         </div>
                     </div>
                 </div>
@@ -2007,6 +2179,39 @@
                         "${escapeHtml(order.guestRequest)}"
                     </div>
                 ` : ''}
+
+                <!-- Catatan Barang Hilang/Rusak -->
+                <div class="bg-white p-5 rounded-3xl shadow-soft border ${hasIssues(order) ? 'border-red-200' : 'border-slate-100'} space-y-3">
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-9 h-9 rounded-xl ${hasIssues(order) ? 'bg-red-50 text-red-500' : 'bg-slate-50 text-slate-400'} flex items-center justify-center"><i class="fa-solid fa-box-open"></i></span>
+                        <div>
+                            <h3 class="text-sm font-extrabold text-slate-800">Catatan Barang Hilang/Rusak</h3>
+                            <p class="text-[11px] text-slate-400">${hasIssues(order) ? `${order.issues.length} catatan tercatat` : 'Belum ada catatan'}</p>
+                        </div>
+                    </div>
+
+                    ${hasIssues(order) ? `
+                        <div class="space-y-2">
+                            ${order.issues.map((iss, idx) => ({ iss, idx })).reverse().map(({ iss, idx }) => `
+                                <div class="bg-red-50/70 border border-red-200 rounded-2xl p-3 text-xs text-red-900">
+                                    <p class="font-medium leading-relaxed">${escapeHtml(iss.text)}</p>
+                                    <div class="flex items-center justify-between mt-2 text-[10px] text-red-500 font-semibold">
+                                        <span>${escapeHtml(iss.by || 'Staf')} • ${new Date(iss.at).toLocaleString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                                        ${isAdmin() ? `<button onclick="deleteOrderIssue('${order.id}', ${idx})" class="text-red-400 hover:text-red-600"><i class="fa-solid fa-trash-can"></i></button>` : ''}
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : ''}
+
+                    <div class="pt-2 border-t border-slate-100 space-y-2">
+                        <textarea id="issueNoteInput" rows="2" placeholder="Contoh: 1 handuk hilang, kerah kemeja robek..."
+                                  class="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs text-slate-800 focus:bg-white focus:outline-none focus:border-red-400"></textarea>
+                        <button onclick="addOrderIssue('${order.id}')" class="w-full py-2.5 rounded-xl bg-red-50 text-red-600 text-xs font-bold border border-red-200 active:scale-[.98] transition-transform">
+                            <i class="fa-solid fa-plus mr-1"></i> Tambah Catatan
+                        </button>
+                    </div>
+                </div>
 
                 <!-- Photo Evidence -->
                 <div class="bg-white p-5 rounded-3xl shadow-soft border border-slate-100">
@@ -2053,13 +2258,50 @@
         }
     }
 
+    // ==========================================
+    // CATATAN BARANG HILANG/RUSAK
+    // ==========================================
+    function hasIssues(order) {
+        return Array.isArray(order.issues) && order.issues.length > 0;
+    }
+
+    function addOrderIssue(orderId) {
+        const ta = document.getElementById('issueNoteInput');
+        const text = (ta ? ta.value : '').trim();
+        if (!text) { showToast('Isi catatannya dulu ya.', 'warn'); return; }
+        const orders = getOrders();
+        const idx = orders.findIndex(o => o.id === orderId);
+        if (idx === -1) return;
+        if (!Array.isArray(orders[idx].issues)) orders[idx].issues = [];
+        orders[idx].issues.push({
+            text,
+            at: new Date().toISOString(),
+            by: currentStaff ? (currentStaff.name || currentStaff.id) : 'Staf'
+        });
+        saveOrders(orders);
+        showToast('Catatan berhasil ditambahkan.', 'success');
+        navigateTo('order-detail', orderId);
+    }
+
+    function deleteOrderIssue(orderId, issueIdx) {
+        if (!isAdmin()) { showToast('Hanya admin yang dapat menghapus catatan.', 'warn'); return; }
+        showConfirm('Hapus catatan ini? Aksi ini tidak bisa dibatalkan.', () => {
+            const orders = getOrders();
+            const idx = orders.findIndex(o => o.id === orderId);
+            if (idx === -1 || !Array.isArray(orders[idx].issues)) return;
+            orders[idx].issues.splice(issueIdx, 1);
+            saveOrders(orders);
+            navigateTo('order-detail', orderId);
+        }, { confirmLabel: 'Ya, Hapus', danger: true });
+    }
+
     function buildOrderWaMessage(order) {
         const isDone = order.status === 'Delivered' || order.status === 'Ready';
         const { totalPrice } = calculateOrderTotals(order.weightKg, order.service);
 
-        let msg = `room ${order.room} (${order.guestName})\n`
-            + `laundry : ${order.service === 'express' ? 'express' : 'reguler'}\n`
-            + `total pakaian : ${order.totalPakaian || '-'}`;
+        let msg = `Kamar ${order.room} (${order.guestName})\n`
+            + `Layanan : ${order.service === 'express' ? 'Express' : 'Reguler'}\n`
+            + `Total Pakaian : ${order.totalPakaian || '-'}`;
 
         if (isDone) {
             msg += `\nBerat: ${formatWeightDisplay(order.weightKg)} Kg`
@@ -2093,7 +2335,7 @@
                         if (navigator.clipboard && navigator.clipboard.writeText) {
                             navigator.clipboard.writeText(message).catch(() => {});
                         }
-                        showToast('Teks pesan sudah disalin. Setelah pilih WhatsApp, tempel (paste) di kolom "Add a message" sebelum kirim.', 'info');
+                        showToast('Teks pesan sudah disalin. Setelah pilih WhatsApp, tempel (paste) dulu di kolom pesan sebelum kirim.', 'info');
                         return navigator.share({ files: [file], text: message });
                     }
                     window.open(textUrl, '_blank');
@@ -2104,14 +2346,474 @@
         }
     }
 
+    // ==========================================
+    // STRUK SERAH TERIMA LAUNDRY (bukti untuk tamu)
+    // ==========================================
+    function formatDateTimeID(value, lang = 'id') {
+        const d = new Date(value);
+        const locale = lang === 'en' ? 'en-US' : 'id-ID';
+        return d.toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+            + ', ' + d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }) + ' WIB';
+    }
+
+    // Estimasi waktu selesai = waktu serah terima + SLA layanan (jam)
+    function estimateReadyDate(order) {
+        const sla = SLA_HOURS[order.service] || SLA_HOURS.regular;
+        const d = new Date(order.createdAt);
+        d.setHours(d.getHours() + sla);
+        return d;
+    }
+
+    // Teks-teks struk dalam 2 bahasa, dipilih staf sebelum cetak/kirim
+    const RECEIPT_I18N = {
+        id: {
+            badge: 'Bukti Serah Terima Laundry',
+            kamar: 'Kamar', namaTamu: 'Nama Tamu', waktuSerah: 'Waktu Serah Terima',
+            layanan: 'Layanan', jumlahPakaian: 'Jumlah Pakaian', berat: 'Berat',
+            beratMenyusul: 'Menyusul', estimasiBiaya: 'Estimasi Total Biaya',
+            catatanKhusus: 'Catatan Khusus Tamu', estimasiSelesai: 'Estimasi Selesai',
+            weighNote: 'Berat & total biaya final akan dikonfirmasi setelah laundry selesai dicuci dan ditimbang.',
+            noteBox: (id) => `Simpan struk ini sebagai bukti serah terima laundry Anda. Untuk menanyakan status, sebutkan ID Order ${id} kepada resepsionis.`,
+            dicetak: 'Dicetak', reguler: 'Reguler', express: 'Express', pcs: 'pcs', kg: 'Kg',
+            waTitle: '*BUKTI SERAH TERIMA LAUNDRY*',
+            waIdOrder: 'ID Order', waCatatan: 'Catatan',
+            waFooter: (id) => `Simpan pesan ini sebagai bukti serah terima laundry Anda. Kalau ingin tanya status, sebutkan ID Order di atas ke resepsionis ya. Terima kasih 🙏`
+        },
+        en: {
+            badge: 'Laundry Drop-off Receipt',
+            kamar: 'Room', namaTamu: 'Guest Name', waktuSerah: 'Drop-off Time',
+            layanan: 'Service', jumlahPakaian: 'Total Items', berat: 'Weight',
+            beratMenyusul: 'To be confirmed', estimasiBiaya: 'Estimated Total Cost',
+            catatanKhusus: "Guest's Special Request", estimasiSelesai: 'Estimated Completion',
+            weighNote: 'Final weight & total cost will be confirmed after the laundry is washed and weighed.',
+            noteBox: (id) => `Please keep this receipt as proof of your laundry drop-off. To check the status, mention Order ID ${id} to the front desk.`,
+            dicetak: 'Printed', reguler: 'Regular', express: 'Express', pcs: 'pcs', kg: 'Kg',
+            waTitle: '*LAUNDRY DROP-OFF RECEIPT*',
+            waIdOrder: 'Order ID', waCatatan: 'Note',
+            waFooter: () => `Please keep this message as proof of your laundry drop-off. If you'd like to check the status, just mention the Order ID above to the front desk. Thank you 🙏`
+        }
+    };
+
+    function buildReceiptFields(order, lang = 'id') {
+        const t = RECEIPT_I18N[lang] || RECEIPT_I18N.id;
+        const { totalPrice, rate } = calculateOrderTotals(order.weightKg, order.service);
+        const sla = SLA_HOURS[order.service] || SLA_HOURS.regular;
+        return {
+            t, totalPrice, rate, sla,
+            serviceLabel: order.service === 'express' ? t.express : t.reguler,
+            weighed: isWeighed(order),
+            estimateText: formatDateTimeID(estimateReadyDate(order), lang)
+        };
+    }
+
+    // CSS kartu struk, dipakai bareng oleh halaman cetak (tab baru) & saat
+    // di-render tersembunyi buat ditangkap jadi gambar (foto struk).
+    const RECEIPT_CSS = `
+    :root{ --blue:#3B82F6; --indigo:#6366F1; --purple:#8B5CF6; --text:#1E293B; --muted:#64748B; --border:#E2E8F0; --bg:#F5F7FF; }
+    .receipt-scope{ font-family:'Plus Jakarta Sans',sans-serif; color:var(--text); }
+    .receipt-scope *{ box-sizing:border-box; }
+    .receipt-scope .sheet{ max-width:420px; margin:0 auto; }
+    .receipt-scope .print-btn{
+        position:fixed; top:16px; right:16px; z-index:10;
+        background:var(--text); color:#fff; border:none; padding:11px 18px; border-radius:14px;
+        font-family:inherit; font-weight:700; font-size:12px; cursor:pointer; box-shadow:0 10px 20px -8px rgba(0,0,0,.3);
+    }
+    .receipt-scope .receipt{
+        background:#fff; border-radius:24px; overflow:hidden;
+        border:1px solid #EEF2FF; box-shadow:0 10px 25px -10px rgba(99,102,241,.15);
+    }
+    .receipt-scope .hero{
+        background:linear-gradient(135deg, var(--blue) 0%, var(--indigo) 50%, var(--purple) 100%);
+        color:#fff; padding:24px 22px; position:relative; overflow:hidden;
+    }
+    .receipt-scope .hero::after{ content:''; position:absolute; width:180px; height:180px; border-radius:50%; background:rgba(255,255,255,.12); top:-70px; right:-50px; }
+    .receipt-scope .hero-top{ display:flex; align-items:center; gap:12px; position:relative; z-index:1; }
+    .receipt-scope .hero-logo{ width:42px; height:42px; border-radius:13px; background:rgba(255,255,255,.2); border:1px solid rgba(255,255,255,.35); display:flex; align-items:center; justify-content:center; font-size:17px; line-height:1; }
+    .receipt-scope .hero-logo i{ display:block; line-height:1; }
+    .receipt-scope .hero-top h1{ margin:0; font-size:15px; font-weight:800; }
+    .receipt-scope .hero-top p{ margin:1px 0 0; font-size:11px; color:#E0E7FF; }
+    .receipt-scope .hero .tag{ position:relative; z-index:1; display:inline-block; margin-top:16px; font-size:10px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; background:rgba(255,255,255,.2); border:1px solid rgba(255,255,255,.35); padding:4px 10px; border-radius:999px; }
+    .receipt-scope .hero .oid{ position:relative; z-index:1; margin:8px 0 0; font-size:22px; font-weight:800; letter-spacing:.02em; }
+    .receipt-scope .body{ padding:22px; }
+    .receipt-scope .row{ display:flex; justify-content:space-between; gap:12px; padding:9px 0; border-bottom:1px dashed var(--border); font-size:12.5px; }
+    .receipt-scope .row:last-child{ border-bottom:none; }
+    .receipt-scope .row .l{ color:var(--muted); font-weight:600; }
+    .receipt-scope .row .v{ font-weight:800; color:var(--text); text-align:right; }
+    .receipt-scope .section-title{ font-size:10.5px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); margin:18px 0 4px; }
+    .receipt-scope .estimate-box{
+        margin-top:16px; background:#EEF2FF; border:1px solid #C7D2FE; border-radius:16px; padding:14px 16px; text-align:center;
+    }
+    .receipt-scope .estimate-box .l{ font-size:10.5px; font-weight:700; color:#4338CA; text-transform:uppercase; letter-spacing:.03em; }
+    .receipt-scope .estimate-box .v{ font-size:14px; font-weight:800; color:#312E81; margin-top:4px; }
+    .receipt-scope .note-box{ margin-top:14px; background:#FFFBEB; border:1px solid #FDE68A; border-radius:14px; padding:12px 14px; font-size:11.5px; color:#92400E; line-height:1.5; }
+    .receipt-scope .weigh-note{ margin-top:14px; background:#F0FDF4; border:1px solid #BBF7D0; border-radius:14px; padding:12px 14px; font-size:11.5px; color:#166534; line-height:1.5; }
+    .receipt-scope .divider{ border:none; border-top:2px dashed var(--border); margin:18px 0; }
+    .receipt-scope .footer{ text-align:center; margin-top:22px; color:var(--muted); font-size:10.5px; line-height:1.6; }
+    .receipt-scope .footer strong{ color:var(--text); }
+    @media print{ .receipt-scope .print-btn{ display:none; } }
+    `;
+
+    // Markup kartu struk saja (dipakai di dalam .sheet, baik untuk halaman cetak maupun capture gambar)
+    function buildReceiptCardHtml(order, lang = 'id') {
+        const f = buildReceiptFields(order, lang);
+        const t = f.t;
+        const generatedAt = formatDateTimeID(new Date(), lang);
+        return `
+        <div class="receipt">
+            <div class="hero">
+                <div class="hero-top">
+                    <div class="hero-logo"><i class="fa-solid fa-jug-detergent"></i></div>
+                    <div>
+                        <h1>Hotel Laundry</h1>
+                        <p>Smart Laundry Management</p>
+                    </div>
+                </div>
+                <span class="tag">${t.badge}</span>
+                <p class="oid">${order.id}</p>
+            </div>
+            <div class="body">
+                <div class="row"><span class="l">${t.kamar}</span><span class="v">${order.room}</span></div>
+                <div class="row"><span class="l">${t.namaTamu}</span><span class="v">${escapeHtml(order.guestName)}</span></div>
+                <div class="row"><span class="l">${t.waktuSerah}</span><span class="v">${formatDateTimeID(order.createdAt, lang)}</span></div>
+                <div class="row"><span class="l">${t.layanan}</span><span class="v">${f.serviceLabel} (${formatRp(f.rate)}/${t.kg})</span></div>
+                <div class="row"><span class="l">${t.jumlahPakaian}</span><span class="v">${order.totalPakaian ? order.totalPakaian + ' ' + t.pcs : '-'}</span></div>
+                <div class="row"><span class="l">${t.berat}</span><span class="v">${f.weighed ? formatWeightDisplay(order.weightKg) + ' ' + t.kg : t.beratMenyusul}</span></div>
+                ${f.weighed ? `<div class="row"><span class="l">${t.estimasiBiaya}</span><span class="v">${formatRp(f.totalPrice)}</span></div>` : ''}
+
+                ${order.guestRequest ? `
+                    <div class="section-title">${t.catatanKhusus}</div>
+                    <p style="font-size:12px; color:var(--text); margin:0; line-height:1.5;">${escapeHtml(order.guestRequest)}</p>
+                ` : ''}
+
+                <div class="estimate-box">
+                    <div class="l">${t.estimasiSelesai}</div>
+                    <div class="v">${f.estimateText}</div>
+                </div>
+
+                ${!f.weighed ? `
+                    <div class="weigh-note"><i class="fa-solid fa-scale-unbalanced"></i>&nbsp; ${t.weighNote}</div>
+                ` : ''}
+
+                <div class="note-box"><i class="fa-solid fa-circle-info"></i>&nbsp; ${t.noteBox(order.id)}</div>
+
+                <hr class="divider">
+                <p class="footer"><strong>Hotel Laundry</strong> — Smart Laundry Management<br>${t.dicetak}: ${generatedAt}</p>
+            </div>
+        </div>`;
+    }
+
+    function receiptHtmlDocument(order, lang = 'id') {
+        return `<!DOCTYPE html>
+<html lang="${lang}">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Struk Laundry ${order.id}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+    body{ margin:0; background:#F5F7FF; padding:28px 16px; }
+    ${RECEIPT_CSS}
+<\/style>
+<\/head>
+<body class="receipt-scope">
+    <button class="print-btn" onclick="window.print()"><i class="fa-solid fa-print"></i>&nbsp; ${lang === 'en' ? 'Print' : 'Cetak'}</button>
+    <div class="sheet">${buildReceiptCardHtml(order, lang)}</div>
+<\/body>
+<\/html>`;
+    }
+
+    function printOrderReceipt(orderId, lang = 'id') {
+        const orders = getOrders();
+        const order = orders.find(o => o.id === orderId);
+        if (!order) { showToast('Order tidak ditemukan.', 'warn'); return; }
+
+        const html = receiptHtmlDocument(order, lang);
+        const blob = new Blob([html], { type: 'text/html;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const w = window.open(url, '_blank');
+        if (!w) {
+            showToast('Popup diblokir browser. Izinkan popup untuk mencetak struk.', 'warn');
+        }
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+    }
+
+    function buildReceiptWaText(order, lang = 'id') {
+        const f = buildReceiptFields(order, lang);
+        const t = f.t;
+        let msg = `${t.waTitle}\n`
+            + `Hotel Laundry - Smart Laundry Management\n\n`
+            + `${t.waIdOrder}: *${order.id}*\n`
+            + `${t.kamar}: ${order.room}\n`
+            + `${t.namaTamu}: ${order.guestName}\n`
+            + `${t.waktuSerah}: ${formatDateTimeID(order.createdAt, lang)}\n`
+            + `${t.layanan}: ${f.serviceLabel} (${formatRp(f.rate)}/${t.kg})\n`
+            + `${t.jumlahPakaian}: ${order.totalPakaian ? order.totalPakaian + ' ' + t.pcs : '-'}\n`
+            + `${t.berat}: ${f.weighed ? formatWeightDisplay(order.weightKg) + ' ' + t.kg : t.beratMenyusul}\n`;
+
+        if (f.weighed) msg += `${t.estimasiBiaya}: ${formatRp(f.totalPrice)}\n`;
+        if (order.guestRequest) msg += `${t.waCatatan}: ${order.guestRequest}\n`;
+
+        msg += `\n⏱️ *${t.estimasiSelesai}:* ${f.estimateText}\n\n` + t.waFooter(order.id);
+
+        return msg;
+    }
+
+    // ==========================================
+    // FOTO STRUK (html2canvas, di-load on-demand)
+    // ==========================================
+    function loadHtml2Canvas() {
+        if (window.html2canvas) return Promise.resolve();
+        if (window.__html2canvasLoading) return window.__html2canvasLoading;
+        window.__html2canvasLoading = new Promise((resolve, reject) => {
+            const s = document.createElement('script');
+            s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+            s.onload = () => resolve();
+            s.onerror = () => reject(new Error('Gagal memuat library gambar.'));
+            document.head.appendChild(s);
+        });
+        return window.__html2canvasLoading;
+    }
+
+    function ensureReceiptStylesInjected() {
+        if (document.getElementById('receiptCardStyles')) return;
+        const style = document.createElement('style');
+        style.id = 'receiptCardStyles';
+        style.textContent = RECEIPT_CSS;
+        document.head.appendChild(style);
+    }
+
+    // Render struk tersembunyi di halaman lalu tangkap jadi gambar PNG (Blob)
+    async function captureReceiptImage(order, lang = 'id') {
+        await loadHtml2Canvas();
+        ensureReceiptStylesInjected();
+
+        const wrapper = document.createElement('div');
+        wrapper.className = 'receipt-scope';
+        wrapper.style.cssText = 'position:fixed; left:-9999px; top:0; width:420px; background:#ffffff;';
+        wrapper.innerHTML = buildReceiptCardHtml(order, lang);
+        document.body.appendChild(wrapper);
+
+        // beri waktu font-awesome & font render dulu sebelum di-capture
+        await new Promise(r => setTimeout(r, 120));
+
+        try {
+            const target = wrapper.querySelector('.receipt');
+            const canvas = await html2canvas(target, { scale: 2, backgroundColor: '#ffffff', useCORS: true });
+            return await new Promise(resolve => canvas.toBlob(blob => resolve(blob), 'image/png'));
+        } finally {
+            document.body.removeChild(wrapper);
+        }
+    }
+
+    async function sendReceiptToWhatsApp(orderId, lang = 'id') {
+        const orders = getOrders();
+        const order = orders.find(o => o.id === orderId);
+        if (!order) { showToast('Order tidak ditemukan.', 'warn'); return; }
+
+        const message = buildReceiptWaText(order, lang);
+        const waPhone = formatPhoneForWa(order.guestPhone);
+        const textUrl = waPhone
+            ? `https://wa.me/${waPhone}?text=${encodeURIComponent(message)}`
+            : `https://wa.me/?text=${encodeURIComponent(message)}`;
+
+        showToast('Menyiapkan foto struk...', 'info');
+
+        let imageBlob = null;
+        try {
+            imageBlob = await captureReceiptImage(order, lang);
+        } catch (err) {
+            imageBlob = null;
+        }
+
+        if (!imageBlob) {
+            showToast('Gagal membuat foto struk, mengirim versi teks saja.', 'warn');
+            window.open(textUrl, '_blank');
+            return;
+        }
+
+        const file = new File([imageBlob], `struk-${order.id}.png`, { type: 'image/png' });
+
+        // Jalur utama di HP: share langsung sebagai foto ke aplikasi WhatsApp
+        if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(message).catch(() => {});
+            }
+            showToast('Teks struk sudah disalin. Setelah pilih WhatsApp, tempel (paste) di kolom pesan sebelum kirim.', 'info');
+            try {
+                await navigator.share({ files: [file], text: message });
+                return;
+            } catch (err) {
+                // dibatalkan pengguna atau gagal share -> lanjut ke fallback download di bawah
+            }
+        }
+
+        // Fallback (umumnya di desktop): unduh foto struknya, lalu buka chat WA
+        // supaya tinggal lampirkan (attach) foto yang baru diunduh.
+        const url = URL.createObjectURL(imageBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `struk-${order.id}.png`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+
+        showToast('Foto struk sudah diunduh. Lampirkan (attach) file tersebut di chat WhatsApp yang baru dibuka.', 'success');
+        window.open(textUrl, '_blank');
+    }
+
+    // ==========================================
+    // MODAL PILIH BAHASA STRUK (Indonesia / English)
+    // ==========================================
+    let receiptLangState = { orderId: null, action: null };
+
+    function openReceiptLangModal(orderId, action) {
+        receiptLangState = { orderId, action };
+        renderReceiptLangModal();
+    }
+
+    function renderReceiptLangModal() {
+        const modal = document.getElementById('modal-container');
+        modal.classList.remove('hidden');
+        const { action } = receiptLangState;
+        const actionLabel = action === 'print' ? 'mencetak' : 'mengirim';
+
+        modal.innerHTML = `
+            <div class="bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl p-6 animate-slide-up shadow-2xl">
+                <div class="flex items-center justify-between mb-1">
+                    <h3 class="text-base font-extrabold text-slate-800">Pilih Bahasa Struk</h3>
+                    <button onclick="closeModal()" class="w-8 h-8 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-xs font-bold">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+                <p class="text-xs text-slate-500 mb-5">Struk akan dibuat dalam bahasa yang dipilih sebelum ${actionLabel}.</p>
+                <div class="space-y-2.5">
+                    <button onclick="confirmReceiptLang('id')" class="w-full py-3.5 bg-slate-50 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 rounded-2xl font-bold text-sm text-slate-700 hover:text-indigo-700 flex items-center justify-center gap-2 transition-all">
+                        🇮🇩 Bahasa Indonesia
+                    </button>
+                    <button onclick="confirmReceiptLang('en')" class="w-full py-3.5 bg-slate-50 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 rounded-2xl font-bold text-sm text-slate-700 hover:text-indigo-700 flex items-center justify-center gap-2 transition-all">
+                        🇬🇧 English
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    function confirmReceiptLang(lang) {
+        const { orderId, action } = receiptLangState;
+        closeModal();
+        if (!orderId) return;
+        if (action === 'print') {
+            printOrderReceipt(orderId, lang);
+        } else {
+            sendReceiptToWhatsApp(orderId, lang);
+        }
+    }
+
     function advanceOrderStatus(orderId, newStatus) {
         const orders = getOrders();
         const idx = orders.findIndex(o => o.id === orderId);
         if (idx !== -1) {
             orders[idx].status = newStatus;
+            orders[idx].statusSince = new Date().toISOString();
             saveOrders(orders);
             navigateTo('order-detail', orderId);
         }
+    }
+
+    // ==========================================
+    // TIMBANG LAUNDRY (Weigh-in) — diminta saat status akan diubah ke "Ready",
+    // karena baju baru ditimbang setelah selesai dicuci, bukan saat order dibuat.
+    // ==========================================
+    let weighState = { orderId: null, weightKg: '' };
+
+    function openWeighModal(orderId) {
+        const order = getOrders().find(o => o.id === orderId);
+        if (!order) return;
+        weighState = { orderId, weightKg: order.weightKg > 0 ? order.weightKg : '' };
+        renderWeighModal();
+    }
+
+    function renderWeighModal() {
+        const modal = document.getElementById('modal-container');
+        const order = getOrders().find(o => o.id === weighState.orderId);
+        if (!order) { closeModal(); return; }
+        modal.classList.remove('hidden');
+
+        const rate = PRICING_RATES[order.service] || PRICING_RATES.regular;
+        const kg = parseFloat(weighState.weightKg) || 0;
+        const total = kg * rate;
+
+        modal.innerHTML = `
+            <div class="bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl flex flex-col overflow-hidden animate-slide-up shadow-2xl">
+                <div class="p-5 border-b border-slate-100 flex items-center justify-between">
+                    <h3 class="text-sm font-extrabold text-slate-800 flex items-center gap-2"><i class="fa-solid fa-weight-scale text-indigo-600"></i> Timbang Laundry</h3>
+                    <button onclick="closeModal()" class="w-8 h-8 rounded-lg bg-slate-100 text-slate-500 flex items-center justify-center">${svgIcon('x', 'w-4 h-4')}</button>
+                </div>
+                <div class="p-5 space-y-4">
+                    <p class="text-xs text-slate-500">Laundry Kamar <strong class="text-slate-700">${order.room}</strong> (${escapeHtml(order.guestName)}) sudah selesai dicuci. Masukkan berat hasil timbangan untuk lanjut ke status <strong class="text-indigo-600">Ready</strong>.</p>
+                    <div>
+                        <div class="flex justify-between items-center mb-2">
+                            <label class="block text-xs font-bold text-slate-600 uppercase">Berat Laundry (Kg)</label>
+                            <span class="text-xs font-semibold text-indigo-600">${formatRp(rate)} / Kg</span>
+                        </div>
+                        <div class="relative">
+                            <input type="text" inputmode="decimal" autofocus placeholder="1,5" value="${weighState.weightKg}"
+                                   oninput="updateWeighInput(this.value)"
+                                   class="w-full py-3.5 px-4 bg-slate-50 border border-slate-200 rounded-2xl text-slate-800 font-extrabold text-lg focus:bg-white focus:outline-none focus:border-indigo-500 shadow-sm">
+                            <span class="absolute right-4 top-3.5 font-bold text-slate-400 text-sm">Kg</span>
+                        </div>
+                        <div class="flex flex-wrap gap-2 mt-3">
+                            ${[1, 1.5, 2, 2.5, 3].map(v => `<button type="button" onclick="weighState.weightKg=${v}; renderWeighModal();" class="px-3.5 py-1.5 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 text-slate-700 font-bold text-xs rounded-xl border border-slate-200 transition-all">${formatWeightDisplay(v)} Kg</button>`).join('')}
+                        </div>
+                    </div>
+                    <div class="bg-indigo-50 rounded-2xl p-3 flex justify-between items-center text-sm">
+                        <span class="text-xs font-semibold text-slate-600">Total Biaya</span>
+                        <span id="weighTotal" class="font-extrabold text-indigo-600">${kg > 0 ? formatRp(total) : '-'}</span>
+                    </div>
+                </div>
+                <div class="p-4 bg-white border-t border-slate-100" style="padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));">
+                    <button onclick="saveWeighAndAdvance()" class="w-full py-3.5 bg-gradient-brand text-white font-bold text-sm rounded-2xl shadow-glow hover:opacity-95 transition-all">
+                        Simpan & Tandai Ready
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    function updateWeighInput(val) {
+        const cleaned = String(val).replace(',', '.');
+        const parsed = parseFloat(cleaned);
+        weighState.weightKg = isNaN(parsed) ? '' : parsed;
+
+        const order = getOrders().find(o => o.id === weighState.orderId);
+        if (!order) return;
+        const rate = PRICING_RATES[order.service] || PRICING_RATES.regular;
+        const kg = parseFloat(weighState.weightKg) || 0;
+        const total = kg * rate;
+        const totalEl = document.getElementById('weighTotal');
+        if (totalEl) totalEl.innerText = kg > 0 ? formatRp(total) : '-';
+    }
+
+    function saveWeighAndAdvance() {
+        const kg = parseFloat(weighState.weightKg);
+        if (!kg || kg <= 0) {
+            showToast('Masukkan berat laundry yang valid dalam Kg!', 'warn');
+            return;
+        }
+        const orders = getOrders();
+        const idx = orders.findIndex(o => o.id === weighState.orderId);
+        if (idx === -1) { closeModal(); return; }
+        orders[idx].weightKg = kg;
+        orders[idx].status = 'Ready';
+        orders[idx].statusSince = new Date().toISOString();
+        saveOrders(orders);
+        const orderId = weighState.orderId;
+        closeModal();
+        showToast('Berat tersimpan, status diubah ke Ready.', 'success');
+        navigateTo('order-detail', orderId);
     }
 
     function deleteOrder(orderId) {
@@ -2124,6 +2826,37 @@
     }
 
     let activeStatusFilter = 'All';
+
+    // ==========================================
+    // DETEKSI ORDER "NYANGKUT" (stuck) DI SATU STATUS TERLALU LAMA
+    // ==========================================
+    const STUCK_THRESHOLD_HOURS = 6; // ubah di sini kalau mau batas selain 6 jam
+
+    // Order lama (sebelum fitur ini ada) belum punya statusSince -> pakai createdAt sebagai fallback
+    function getStatusSince(order) {
+        return order.statusSince || order.createdAt;
+    }
+
+    function stuckHours(order) {
+        const since = getStatusSince(order);
+        if (!since) return 0;
+        return (Date.now() - new Date(since).getTime()) / 3600000;
+    }
+
+    // Hanya order aktif (belum Delivered) yang bisa dianggap "nyangkut"
+    function isOrderStuck(order) {
+        if (!order || order.status === 'Delivered') return false;
+        return stuckHours(order) >= STUCK_THRESHOLD_HOURS;
+    }
+
+    function stuckBadgeHtml(order, extraClass = '') {
+        if (!isOrderStuck(order)) return '';
+        const h = Math.floor(stuckHours(order));
+        return `
+            <span class="stuck-badge ${extraClass}" title="Sudah ${h} jam di status ${order.status}, cek segera">
+                <i class="fa-solid fa-triangle-exclamation"></i> ${h}j di ${order.status}
+            </span>`;
+    }
 
     function timeAgo(value) {
         const m = Math.floor((Date.now() - new Date(value).getTime()) / 60000);
@@ -2144,6 +2877,7 @@
         const idx = orders.findIndex(o => o.id === orderId);
         if (idx === -1) return;
         orders[idx].status = newStatus;
+        orders[idx].statusSince = new Date().toISOString();
         saveOrders(orders);
         showToast(`Kamar ${orders[idx].room} → ${newStatus === 'Delivered' ? 'Delivered' : newStatus}`, 'success');
         refreshActive();
@@ -2160,6 +2894,7 @@
             Ready:      { grad: 'linear-gradient(140deg,#8B5CF6 0%,#C026D3 100%)', color: '#A855F7', next: 'Delivered',  action: 'Antar ke kamar', icon: 'fa-door-open' }
         };
         const countBy = s => all.filter(o => o.status === s).length;
+        const stuckOrders = all.filter(isOrderStuck);
 
         // Antrean: express dulu, lalu yang paling lama menunggu
         const list = all
@@ -2180,22 +2915,27 @@
             const step = Math.max(0, STEPS.indexOf(o.status));
             const isExpress = o.service === 'express';
             const { totalPrice } = calculateOrderTotals(o.weightKg, o.service);
+            const stuck = isOrderStuck(o);
             return `
                 <div onclick="navigateTo('order-detail', '${o.id}')" style="--c:${st.color};--i:${i}"
-                     class="ao-card ${animate ? 'ao-in' : ''}">
+                     class="ao-card ${animate ? 'ao-in' : ''} ${stuck ? 'ring-2 ring-red-200' : ''}">
                     <div class="flex items-center gap-3">
-                        <span class="shrink-0 w-12 h-12 rounded-2xl text-white font-extrabold text-sm flex items-center justify-center" style="background:${st.grad};box-shadow:0 10px 18px -10px ${st.color}">${o.room}</span>
+                        <span class="shrink-0 relative w-12 h-12 rounded-2xl text-white font-extrabold text-sm flex items-center justify-center" style="background:${st.grad};box-shadow:0 10px 18px -10px ${st.color}">
+                            ${o.room}
+                            ${stuck ? '<span class="stuck-dot"></span>' : ''}
+                        </span>
                         <div class="min-w-0 flex-1">
                             <h5 class="text-sm font-extrabold text-slate-800 truncate">${escapeHtml(o.guestName || 'Tamu Kamar ' + o.room)}</h5>
                             <p class="text-[11px] text-slate-400 font-medium truncate">${o.id}</p>
                         </div>
-                        <div class="text-right shrink-0">
-                            <p class="text-sm font-extrabold text-slate-800">${formatRp(totalPrice)}</p>
+                        <div class="text-right shrink-0 max-w-[42%]">
+                            <p class="text-sm font-extrabold text-slate-800 break-all">${isWeighed(o) ? formatRp(totalPrice) : '-'}</p>
                             <p class="text-[10px] font-bold mt-0.5 ${o.paid ? 'text-emerald-600' : 'text-rose-500'}">
                                 <i class="fa-solid ${o.paid ? 'fa-circle-check' : 'fa-circle-exclamation'} mr-0.5"></i>${o.paid ? 'Lunas' : 'Belum bayar'}
                             </p>
                         </div>
                     </div>
+                    ${stuck ? `<div class="mt-3">${stuckBadgeHtml(o)}</div>` : ''}
 
                     <div class="grid grid-cols-3 gap-1.5 mt-4" aria-label="Tahap: ${o.status}">
                         ${STEPS.map((s, k) => `
@@ -2207,8 +2947,9 @@
                     </div>
 
                     <div class="flex items-center gap-2 mt-3 text-[11px] font-semibold text-slate-500">
-                        <span class="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-slate-50 border border-slate-100"><i class="fa-solid fa-weight-scale text-slate-400"></i>${formatWeightDisplay(o.weightKg)} Kg</span>
+                        <span class="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-slate-50 border border-slate-100"><i class="fa-solid fa-weight-scale text-slate-400"></i>${isWeighed(o) ? formatWeightDisplay(o.weightKg) + ' Kg' : 'Belum ditimbang'}</span>
                         <span class="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg ${isExpress ? 'bg-amber-50 text-amber-700 border border-amber-100' : 'bg-slate-50 border border-slate-100'}"><i class="fa-solid ${isExpress ? 'fa-bolt' : 'fa-shirt'} ${isExpress ? '' : 'text-slate-400'}"></i>${isExpress ? 'Express' : 'Regular'}</span>
+                        ${hasIssues(o) ? `<span class="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-red-50 text-red-600 border border-red-100" title="${o.issues.length} catatan barang hilang/rusak"><i class="fa-solid fa-box-open"></i>${o.issues.length}</span>` : ''}
                         <span class="ml-auto inline-flex items-center gap-1 text-slate-400"><i class="fa-regular fa-clock"></i>${timeAgo(o.createdAt)}</span>
                     </div>
 
@@ -2229,6 +2970,16 @@
                           : `<b class="text-slate-700">${all.length} order</b> berjalan, <b class="text-slate-700">${formatWeightDisplay(Math.round(totalKg * 10) / 10)} Kg</b> senilai <b class="text-indigo-600">${formatRp(totalRp)}</b>${unpaid ? `, ${unpaid} belum dibayar` : ''}`}
                     </p>
                 </div>
+
+                ${stuckOrders.length > 0 ? `
+                    <div class="flex items-center gap-3 bg-red-50 border border-red-200 rounded-2xl px-4 py-3">
+                        <span class="w-8 h-8 rounded-xl bg-red-500 text-white flex items-center justify-center shrink-0"><i class="fa-solid fa-triangle-exclamation text-xs"></i></span>
+                        <p class="text-xs font-bold text-red-700 leading-snug">
+                            ${stuckOrders.length} order sudah lebih dari ${STUCK_THRESHOLD_HOURS} jam nyangkut di satu status
+                            <span class="block text-[11px] font-semibold text-red-500 mt-0.5">Kamar ${stuckOrders.map(o => o.room).join(', ')} — cek segera</span>
+                        </p>
+                    </div>
+                ` : ''}
 
                 <div class="flex gap-2 overflow-x-auto scrollbar-none pb-1 -mx-1 px-1">
                     ${tabs.map(t => `
@@ -2438,12 +3189,13 @@
                         <h5 class="text-sm font-extrabold text-slate-800 truncate">${escapeHtml(o.guestName || 'Tamu Kamar ' + o.room)}</h5>
                         <p class="text-[11px] mt-0.5 text-slate-400 font-medium truncate">
                             <span class="font-bold" style="color:${st.color}">${o.status}</span>
-                            ${o.id}, ${formatWeightDisplay(o.weightKg)} Kg
+                            ${o.id}, ${isWeighed(o) ? formatWeightDisplay(o.weightKg) + ' Kg' : 'Belum ditimbang'}
                             <i class="fa-solid ${isExpress ? 'fa-bolt text-amber-500' : 'fa-shirt'} ml-0.5"></i>
+                            ${hasIssues(o) ? `<i class="fa-solid fa-box-open text-red-500 ml-1" title="${o.issues.length} catatan barang hilang/rusak"></i>` : ''}
                         </p>
                     </div>
-                    <div class="shrink-0 text-right">
-                        <p class="text-xs font-extrabold text-slate-800">${formatRp(totalPrice)}</p>
+                    <div class="shrink-0 text-right max-w-[42%]">
+                        <p class="text-xs font-extrabold text-slate-800 break-all">${isWeighed(o) ? formatRp(totalPrice) : '-'}</p>
                         <p class="text-[11px] text-slate-400 font-medium mt-0.5">${time}</p>
                     </div>
                 </div>`;
@@ -2566,6 +3318,7 @@
     function renderSettingsScreen() {
         const orders = getOrders();
         const report = computeMonthlyReport(reportMonth);
+        const autoCfg = getAutoBackupCfg();
 
         const monthOptions = [];
         const now = new Date();
@@ -2623,6 +3376,48 @@
                         </button>
                         <input type="file" id="importFileInput" accept="application/json,.json" class="hidden" onchange="handleImportFile(event)">
                     </div>
+
+                    <!-- Backup Otomatis -->
+                    <div class="rounded-2xl bg-slate-50 border border-slate-100 p-3.5 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-xs font-bold text-slate-700"><i class="fa-solid fa-clock-rotate-left text-indigo-500 mr-1"></i> Backup Otomatis</p>
+                                <p class="text-[11px] text-slate-400 mt-0.5">${autoCfg.enabled ? `Aktif, setiap tanggal ${autoCfg.day} setiap bulan` : 'Nonaktif'}</p>
+                            </div>
+                            <button onclick="setAutoBackupEnabled(${!autoCfg.enabled})"
+                                    class="shrink-0 w-12 h-7 rounded-full relative transition-colors ${autoCfg.enabled ? 'bg-emerald-500' : 'bg-slate-300'}"
+                                    aria-label="${autoCfg.enabled ? 'Matikan' : 'Aktifkan'} backup otomatis">
+                                <span class="absolute top-1 left-1 w-5 h-5 bg-white rounded-full shadow-sm transition-transform ${autoCfg.enabled ? 'translate-x-5' : ''}"></span>
+                            </button>
+                        </div>
+
+                        ${autoCfg.enabled ? `
+                            <div class="flex items-center gap-2.5">
+                                <label class="text-[11px] font-bold text-slate-500 shrink-0">Setiap tanggal</label>
+                                <input type="number" min="1" max="31" value="${autoCfg.day}"
+                                       onchange="setAutoBackupDay(this.value); navigateTo('settings')"
+                                       class="w-16 py-1.5 px-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-700 text-center focus:outline-none focus:border-indigo-500">
+                                <span class="text-[11px] text-slate-400">setiap bulan (kalau tanggalnya tidak ada di bulan itu, jalan di hari terakhir)</span>
+                            </div>
+                            <div class="flex items-center justify-between text-[11px]">
+                                <span class="text-slate-400">Terakhir jalan: <b class="text-slate-600">${autoCfg.lastRun ? formatDateShort(autoCfg.lastRun) : 'Belum pernah'}</b></span>
+                                <button onclick="runAutoBackupNow()" class="text-indigo-600 font-bold">Jalankan sekarang</button>
+                            </div>
+                            ${(autoCfg.history || []).length > 0 ? `
+                                <div class="rounded-xl border border-slate-100 divide-y divide-slate-100 bg-white">
+                                    ${autoCfg.history.map((h, i) => `
+                                        <div class="flex items-center justify-between px-3 py-2">
+                                            <div>
+                                                <p class="text-[11px] font-bold text-slate-700">${formatDateShort(dateKey(h.at))}</p>
+                                                <p class="text-[10px] text-slate-400">${h.count} order tersimpan</p>
+                                            </div>
+                                            <button onclick="downloadAutoBackupSnapshot(${i})" class="text-[11px] font-bold text-indigo-600"><i class="fa-solid fa-download"></i> Unduh</button>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            ` : ''}
+                        ` : ''}
+                    </div>
                 </div>
 
                 <!-- Reset -->
@@ -2651,9 +3446,19 @@
                                 <p class="text-[11px] text-slate-400">Rekap order per bulan</p>
                             </div>
                         </div>
-                        <select onchange="setReportMonth(this.value)" class="text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:border-indigo-500">
-                            ${monthOptions.map(m => `<option value="${m.val}" ${m.val === reportMonth ? 'selected' : ''}>${m.label}</option>`).join('')}
-                        </select>
+                        <div class="custom-select relative" id="monthSelect">
+                            <button type="button" onclick="toggleCustomSelect('monthSelect')"
+                                    class="custom-select-trigger inline-flex items-center gap-2 text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-full pl-4 pr-3 py-2 shadow-sm hover:border-indigo-300 transition-colors">
+                                ${monthOptions.find(m => m.val === reportMonth)?.label || reportMonth}
+                                <i class="fa-solid fa-chevron-down text-[10px] text-indigo-500 custom-select-caret"></i>
+                            </button>
+                            <div class="custom-select-panel hidden">
+                                ${monthOptions.map(m => `
+                                    <button type="button" onclick="setReportMonth('${m.val}')"
+                                            class="custom-select-option ${m.val === reportMonth ? 'active' : ''}">${m.label}</button>
+                                `).join('')}
+                            </div>
+                        </div>
                     </div>
 
                     <div class="bg-gradient-brand text-white rounded-3xl p-5 relative overflow-hidden shadow-glow">
@@ -2733,23 +3538,109 @@
         return { monthLabel, count: orders.length, totalRp, totalKg, expressN, regularN, byDay, dayKeys, orders };
     }
 
-    function exportBackupData() {
-        const payload = {
+    function buildBackupPayload() {
+        return {
             app: 'Hotel Laundry - Smart Laundry Management',
             exportedAt: new Date().toISOString(),
             version: 1,
             orders: getOrders()
         };
+    }
+
+    function downloadJsonFile(payload, filename) {
         const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `hotel-laundry-backup-${dateKey(new Date())}.json`;
+        a.download = filename;
         document.body.appendChild(a);
         a.click();
         a.remove();
         URL.revokeObjectURL(url);
+    }
+
+    function exportBackupData() {
+        downloadJsonFile(buildBackupPayload(), `hotel-laundry-backup-${dateKey(new Date())}.json`);
         showToast('Backup data berhasil diunduh.', 'success');
+    }
+
+    // ==========================================
+    // BACKUP OTOMATIS PADA TANGGAL YANG DITENTUKAN
+    // ==========================================
+    function getAutoBackupCfg() {
+        try {
+            return { enabled: false, day: 1, lastRun: '', history: [], ...JSON.parse(localStorage.getItem('hl_autobackup') || '{}') };
+        } catch { return { enabled: false, day: 1, lastRun: '', history: [] }; }
+    }
+
+    function setAutoBackupCfg(cfg) {
+        localStorage.setItem('hl_autobackup', JSON.stringify(cfg));
+    }
+
+    // Kalau tanggal yang dipilih tidak ada di bulan ini (misal 31 di bulan Februari),
+    // dijalankan di hari terakhir bulan itu saja.
+    function effectiveBackupDay(day, refDate = new Date()) {
+        const lastDay = new Date(refDate.getFullYear(), refDate.getMonth() + 1, 0).getDate();
+        return Math.min(day, lastDay);
+    }
+
+    // Simpan cadangan otomatis di localStorage juga (bukan cuma file unduhan),
+    // supaya tetap ada walau file unduhannya tidak sengaja terhapus/tidak ketemu.
+    function saveAutoBackupSnapshot(cfg, payload) {
+        const history = Array.isArray(cfg.history) ? cfg.history : [];
+        history.unshift({ at: payload.exportedAt, count: payload.orders.length, payload });
+        cfg.history = history.slice(0, 5); // simpan 5 cadangan terakhir saja
+        return cfg;
+    }
+
+    function checkAutoBackup() {
+        const cfg = getAutoBackupCfg();
+        if (!cfg.enabled) return;
+
+        const today = new Date();
+        const todayKey = dateKey(today);
+        if (cfg.lastRun === todayKey) return; // sudah jalan hari ini
+        if (today.getDate() !== effectiveBackupDay(cfg.day, today)) return; // belum tanggalnya
+
+        const payload = buildBackupPayload();
+        downloadJsonFile(payload, `hotel-laundry-autobackup-${todayKey}.json`);
+        const updated = saveAutoBackupSnapshot(cfg, payload);
+        updated.lastRun = todayKey;
+        setAutoBackupCfg(updated);
+        showToast(`Backup otomatis tanggal ${cfg.day} berhasil, file terunduh.`, 'success');
+    }
+
+    function setAutoBackupEnabled(enabled) {
+        const cfg = getAutoBackupCfg();
+        cfg.enabled = enabled;
+        setAutoBackupCfg(cfg);
+        if (enabled) checkAutoBackup();
+        navigateTo('settings');
+    }
+
+    function setAutoBackupDay(day) {
+        const d = Math.max(1, Math.min(31, parseInt(day, 10) || 1));
+        const cfg = getAutoBackupCfg();
+        cfg.day = d;
+        setAutoBackupCfg(cfg);
+    }
+
+    function runAutoBackupNow() {
+        const cfg = getAutoBackupCfg();
+        const payload = buildBackupPayload();
+        downloadJsonFile(payload, `hotel-laundry-autobackup-${dateKey(new Date())}.json`);
+        const updated = saveAutoBackupSnapshot(cfg, payload);
+        updated.lastRun = dateKey(new Date());
+        setAutoBackupCfg(updated);
+        showToast('Backup otomatis dijalankan sekarang & tersimpan.', 'success');
+        navigateTo('settings');
+    }
+
+    function downloadAutoBackupSnapshot(index) {
+        const cfg = getAutoBackupCfg();
+        const item = (cfg.history || [])[index];
+        if (!item) return;
+        downloadJsonFile(item.payload, `hotel-laundry-autobackup-${dateKey(item.at)}.json`);
     }
 
     function handleImportFile(event) {
@@ -2939,8 +3830,9 @@
     .hero-top{ display:flex; align-items:center; gap:14px; position:relative; z-index:1; }
     .hero-logo{
         width:52px; height:52px; border-radius:16px; background:rgba(255,255,255,.2);
-        border:1px solid rgba(255,255,255,.35); display:flex; align-items:center; justify-content:center; font-size:20px;
+        border:1px solid rgba(255,255,255,.35); display:flex; align-items:center; justify-content:center; font-size:20px; line-height:1;
     }
+    .hero-logo i{ display:block; line-height:1; }
     .hero-top h1{ margin:0; font-size:18px; font-weight:800; }
     .hero-top p{ margin:2px 0 0; font-size:12px; color:#E0E7FF; }
     .hero h2{ position:relative; z-index:1; margin:28px 0 4px; font-size:13px; font-weight:600; color:#E0E7FF; }
